@@ -202,7 +202,6 @@ public class BookAppContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        //optionsBuilder.UseNpgsql("User ID =postgres;Password=Thespy12345;Server=localhost;Port=5432;Database=bookish;Pooling=true");
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
