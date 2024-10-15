@@ -109,6 +109,10 @@ app.MapPost("/code-verify", async (CodeVerify request, BookAppContext db) =>
 // User endpoints
 app.MapPost("/users", async (BookAppContext db, UserRegistrationRequest request) =>
 {
+    if (db.Users.Any(item => item.Email == request.Email))
+    {
+        return Results.BadRequest(new { Error = new { Error = "This email is already signed !" } });
+    }
 
     if (!EmailValidator.IsValid(request.Email))
     {
