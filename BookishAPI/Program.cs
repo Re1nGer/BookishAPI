@@ -111,7 +111,7 @@ app.MapPost("/users", async (BookAppContext db, UserRegistrationRequest request)
 {
     if (db.Users.Any(item => item.Email == request.Email))
     {
-        return Results.BadRequest(new { Error = new { Error = "This email is already signed !" } });
+        return Results.BadRequest(new { Error = new { UserExists = "This email is already signed !" } });
     }
 
     if (!EmailValidator.IsValid(request.Email))
