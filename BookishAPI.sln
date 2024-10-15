@@ -1,0 +1,16 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BookishAPI", "BookishAPI\BookishAPI.csproj", "{75521C4E-6ABC-47F0-B903-E6B564BA4FB8}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{75521C4E-6ABC-47F0-B903-E6B564BA4FB8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{75521C4E-6ABC-47F0-B903-E6B564BA4FB8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{75521C4E-6ABC-47F0-B903-E6B564BA4FB8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{75521C4E-6ABC-47F0-B903-E6B564BA4FB8}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
