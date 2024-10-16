@@ -1,5 +1,7 @@
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using BookishAPI;
+using Microsoft.AspNetCore.Http.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,7 +16,12 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<MailerSendService>();
 builder.Services.AddScoped<CodeGenerator>();
 
-
+builder.Services.Configure<JsonOptions>(options =>
+{
+    options.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+    options.SerializerOptions.MaxDepth = 128; // Increase the maximum depth if needed
+    options.SerializerOptions.WriteIndented = true; // Optional: for pretty-printing
+});
 
 var app = builder.Build();
 
@@ -45,7 +52,6 @@ app.MapGet("/test", async (MailerSendService service, CodeGenerator generator) =
 app.MapPost("/forgot-password", async (ForgotPasswordRequest request, BookAppContext db, MailerSendService service, CodeGenerator generator) =>
 {
     var user = await db.Users
-        .Include(item => item.VerificationCodes)
         .FirstOrDefaultAsync(item => item.Email == request.Email);
 
     if (user is null) return Results.NotFound("User is not found");
@@ -58,12 +64,12 @@ app.MapPost("/forgot-password", async (ForgotPasswordRequest request, BookAppCon
         IsUsed = false
     };
     
-    user.VerificationCodes.Add(verificationCode);
+    db.VerificationCodes.Add(verificationCode);
 
     await db.SaveChangesAsync();
     
-    return Results.Ok(await service.SendEmailAsync(user.Email,
-        "verification email", $"here's your verification code {generator.Generate4DigitCode()}"));
+    return Results.Ok(await service.SendEmailAsync("bekjonibr@gmail.com",
+        "verification email", $"here's your verification code {verificationCode.Code}"));
 });
 
 
@@ -92,7 +98,12 @@ app.MapPost("/login", async (LoginRequest request, BookAppContext db) =>
 app.MapPost("/code-verify", async (CodeVerify request, BookAppContext db) =>
 {
     var verificationCode = await db.VerificationCodes
-        .FirstOrDefaultAsync(item => item.Code == request.Code);
+        .Include(item => item.User)
+        .FirstOrDefaultAsync(item =>
+            item.Code == request.Code
+            && item.User.Email == request.Email
+            && !item.IsUsed
+            && DateTime.UtcNow - item.CreatedAt <= TimeSpan.FromSeconds(30));
 
     if (verificationCode is null)
     {
@@ -102,7 +113,6 @@ app.MapPost("/code-verify", async (CodeVerify request, BookAppContext db) =>
     verificationCode.IsUsed = true;
         
     return Results.Ok();
-    
 });
 
     
@@ -384,6 +394,6 @@ public record NoteCreateRequest(string Content, int TypeId, int? QuoteId);
 public record SpacedRepetitionGroupCreateRequest(string Name, DateTime RemindAt);
 public record SpacedRepetitionItemAddRequest(int? QuoteId, int? NoteId);
 public record ForgotPasswordRequest(string Email);
-public record CodeVerify(string Code);
+public record CodeVerify(string Code, string Email);
 
 // Enums
