@@ -115,6 +115,35 @@ app.MapPost("/code-verify", async (CodeVerify request, BookAppContext db) =>
     return Results.Ok();
 });
 
+app.MapPost("/reset-password", async (ResetPasswordRequest request, BookAppContext db) =>
+{
+    var verificationCode = await db.VerificationCodes
+        .Include(item => item.User)
+        .FirstOrDefaultAsync(item =>
+            item.Code == request.VerificationCode
+            && item.User.Email == request.Email
+            && !item.IsUsed
+            && DateTime.UtcNow - item.CreatedAt <= TimeSpan.FromSeconds(300));
+    
+    if (verificationCode is null)
+    {
+        return Results.BadRequest(new { Error = "Session expired" });
+    }
+
+    if (request.NewPasswordRepeated != request.NewPassword)
+    {
+        return Results.BadRequest(new { Error = "Confirmed passwords don't match up" });
+    }
+
+    var user = await db.Users.FirstOrDefaultAsync(item => item.Email == request.Email);
+
+    user.Password = PasswordHasher.HashPassword(request.NewPassword);
+
+    await db.SaveChangesAsync();
+        
+    return Results.Ok("Password updated successfully");
+});
+
     
 // User endpoints
 app.MapPost("/users", async (BookAppContext db, UserRegistrationRequest request) =>
@@ -395,5 +424,6 @@ public record SpacedRepetitionGroupCreateRequest(string Name, DateTime RemindAt)
 public record SpacedRepetitionItemAddRequest(int? QuoteId, int? NoteId);
 public record ForgotPasswordRequest(string Email);
 public record CodeVerify(string Code, string Email);
+public record ResetPasswordRequest(string NewPassword, string NewPasswordRepeated, string Email, string VerificationCode);
 
 // Enums
