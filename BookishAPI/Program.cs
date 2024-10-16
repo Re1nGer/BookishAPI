@@ -87,7 +87,7 @@ app.MapPost("/login", async (LoginRequest request, BookAppContext db) =>
 
     if (!isCorrectPassword)
     {
-        return Results.BadRequest("Incorrect email or password");
+        return Results.BadRequest(new { Error = "Incorrect email or password" });
     }
 
     return Results.Ok();
