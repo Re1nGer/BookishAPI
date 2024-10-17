@@ -152,15 +152,23 @@ app.MapPost("/users", async (BookAppContext db, UserRegistrationRequest request)
     {
         return Results.BadRequest(new { Error = new { UserExists = "This email is already signed !" } });
     }
+    
+    var errors = new Dictionary<string, string>();
 
     if (!EmailValidator.IsValid(request.Email))
     {
-        return Results.BadRequest(new { Error = new { Email = "Invalid email format. Please try again." } });
+        errors.Add("email", "Invalid email format. Please try again.");
     }
 
     if (!PasswordValidator.IsValid(request.Password))
     {
-        return Results.BadRequest(new { Error = new { Password = PasswordValidator.Validate(request.Password) } });
+        var passwordError = PasswordValidator.Validate(request.Password);
+        errors.Add("password", passwordError);
+    }
+
+    if (errors.Count != 0)
+    {
+        return Results.BadRequest(errors);
     }
     
     var user = new User
@@ -426,4 +434,8 @@ public record ForgotPasswordRequest(string Email);
 public record CodeVerify(string Code, string Email);
 public record ResetPasswordRequest(string NewPassword, string NewPasswordRepeated, string Email, string VerificationCode);
 
-// Enums
+
+// Error Objects
+
+public record SignUpErrors(string UserExists, string Email, string Password);
+
