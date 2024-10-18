@@ -80,7 +80,7 @@ app.MapPost("/login", async (LoginRequest request, BookAppContext db) =>
 
     if (user is null)
     {
-        return Results.NotFound();
+        return Results.NotFound(new { Error = "Incorrect email or password" });
     }
 
     var isCorrectPassword = PasswordHasher.VerifyPassword(user.Password, request.Password);
