@@ -68,7 +68,7 @@ app.MapPost("/forgot-password", async (ForgotPasswordRequest request, BookAppCon
 
     await db.SaveChangesAsync();
     
-    return Results.Ok(await service.SendEmailAsync("bekjonibr@gmail.com",
+    return Results.Ok(await service.SendEmailAsync(user.Email,
         "verification email", $"here's your verification code {verificationCode.Code}"));
 });
 
