@@ -21,18 +21,28 @@ public class GoogleBooksClient
 {
     private readonly HttpClient _httpClient;
     private const string BaseUrl = "https://www.googleapis.com/books/v1/volumes";
+    private readonly ILogger<GoogleBooksClient> _logger;
 
-    public GoogleBooksClient()
+    public GoogleBooksClient(ILogger<GoogleBooksClient> logger)
     {
+        _logger = logger;
         _httpClient = new HttpClient();
     }
 
     public async Task<JsonElement> SearchBooksByTitleAsync(string title, int? maxResult = 10)
     {
-        var query = Uri.EscapeDataString(title);
-        var response = await _httpClient.GetStringAsync($"{BaseUrl}?q={query}&maxResults={maxResult}");
-        var result = JsonSerializer.Deserialize<JsonElement>(response);
+        try
+        {
+            var query = Uri.EscapeDataString(title);
+            var response = await _httpClient.GetStringAsync($"{BaseUrl}?q={query}&maxResults={maxResult}");
+            var result = JsonSerializer.Deserialize<JsonElement>(response);
 
-        return result;
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "error sending request");
+            throw;
+        }
     }
 }
