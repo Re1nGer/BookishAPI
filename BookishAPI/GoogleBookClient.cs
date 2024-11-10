@@ -34,7 +34,7 @@ public class GoogleBooksClient
         try
         {
             var query = Uri.EscapeDataString(title);
-            var response = await _httpClient.GetStringAsync($"{BaseUrl}?q={query}&maxResults={maxResult}&langRestrict=en");
+            var response = await _httpClient.GetStringAsync($"{BaseUrl}?q={query}&maxResults={maxResult}&langRestrict=en&printType=books");
             var result = JsonSerializer.Deserialize<JsonElement>(response);
 
             return result;
