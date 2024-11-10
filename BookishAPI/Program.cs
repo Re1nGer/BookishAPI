@@ -192,6 +192,11 @@ app.MapGet("/search/{title}", async (string title, [FromQuery] int? maxResult, G
     return Results.Ok(await client.SearchBooksByTitleAsync(title, maxResult));
 });
 
+app.MapGet("/book/{id}", async (string id, GoogleBooksClient client) =>
+{
+    return Results.Ok(await client.GetBookByVolumeId(id));
+});
+
 app.MapPut("/users/{id}/settings", async (Guid id, BookAppContext db, UserSettingsUpdateRequest request) =>
 {
     var user = await db.Users.Include(u => u.Settings).FirstOrDefaultAsync(u => u.Id == id);

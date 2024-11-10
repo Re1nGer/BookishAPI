@@ -45,4 +45,19 @@ public class GoogleBooksClient
             throw;
         }
     }
+    public async Task<JsonElement> GetBookByVolumeId(string id)
+    {
+        try
+        {
+            var response = await _httpClient.GetStringAsync($"{BaseUrl}/{id}");
+            var result = JsonSerializer.Deserialize<JsonElement>(response);
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "error sending request");
+            throw;
+        }
+    }
 }
