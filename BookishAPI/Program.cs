@@ -1,7 +1,8 @@
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using BookishAPI;
-using Microsoft.AspNetCore.Http.Json;
+using Microsoft.AspNetCore.Mvc;
+using JsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +16,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<MailerSendService>();
 builder.Services.AddScoped<CodeGenerator>();
+builder.Services.AddScoped<GoogleBooksClient>();
 
 builder.Services.Configure<JsonOptions>(options =>
 {
@@ -183,6 +185,11 @@ app.MapPost("/users", async (BookAppContext db, UserRegistrationRequest request)
     await db.SaveChangesAsync();
 
     return Results.Created($"/users/{user.Id}", user);
+});
+
+app.MapGet("/search/{title}", async (string title, [FromQuery] int? maxResult, GoogleBooksClient client) =>
+{
+    return Results.Ok(await client.SearchBooksByTitleAsync(title, maxResult));
 });
 
 app.MapPut("/users/{id}/settings", async (Guid id, BookAppContext db, UserSettingsUpdateRequest request) =>
