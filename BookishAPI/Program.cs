@@ -17,6 +17,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<MailerSendService>();
 builder.Services.AddScoped<CodeGenerator>();
 builder.Services.AddScoped<GoogleBooksClient>();
+builder.Services.AddScoped<CategoryMapper>();
 
 builder.Services.Configure<JsonOptions>(options =>
 {
