@@ -51,6 +51,14 @@ public class GoogleBooksClient
             var response = await _httpClient.GetStringAsync($"{BaseUrl}/{id}");
             var result = JsonSerializer.Deserialize<GoogleBooksItemDto>(response, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
+            var mappedCategories = _categoryMapper.MapCategories(result.VolumeInfo.Categories);
+            
+            result.VolumeInfo.Categories = mappedCategories
+                .Where(x => !string.IsNullOrEmpty(x.NormalizedCategory))
+                .Select(x => x.NormalizedCategory)
+                .Distinct()
+                .ToList();
+            
             return result;
         }
         catch (Exception ex)
