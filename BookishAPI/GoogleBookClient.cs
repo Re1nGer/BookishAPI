@@ -44,12 +44,12 @@ public class GoogleBooksClient
             throw;
         }
     }
-    public async Task<GoogleBooksListDto> GetBookByVolumeId(string id)
+    public async Task<GoogleBooksItemDto> GetBookByVolumeId(string id)
     {
         try
         {
             var response = await _httpClient.GetStringAsync($"{BaseUrl}/{id}");
-            var result = JsonSerializer.Deserialize<GoogleBooksListDto>(response, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var result = JsonSerializer.Deserialize<GoogleBooksItemDto>(response, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
             return result;
         }
