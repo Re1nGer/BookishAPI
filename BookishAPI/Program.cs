@@ -1,7 +1,10 @@
+using System.Text;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using BookishAPI;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
 using JsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,6 +21,7 @@ builder.Services.AddScoped<MailerSendService>();
 builder.Services.AddScoped<CodeGenerator>();
 builder.Services.AddScoped<GoogleBooksClient>();
 builder.Services.AddScoped<CategoryMapper>();
+builder.Services.AddScoped<TokenService>();
 
 builder.Services.Configure<JsonOptions>(options =>
 {
@@ -26,7 +30,30 @@ builder.Services.Configure<JsonOptions>(options =>
     options.SerializerOptions.WriteIndented = true; // Optional: for pretty-printing
 });
 
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+}).AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["JWT:ValidIssuer"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:Secret"]))
+    };
+});
+
+builder.Services.AddAuthorization();
+
 var app = builder.Build();
+
+app.UseAuthentication();
+
+app.UseAuthorization();
 
 using (var scope = app.Services.CreateScope())
 {
@@ -76,15 +103,17 @@ app.MapPost("/forgot-password", async (ForgotPasswordRequest request, BookAppCon
 });
 
 
-app.MapPost("/login", async (LoginRequest request, BookAppContext db) =>
+app.MapPost("/login", async (LoginRequest request, BookAppContext db, TokenService tokenService) =>
 {
     var user = await db.Users
         .FirstOrDefaultAsync(item => item.Email == request.Email);
-
+    
     if (user is null)
     {
         return Results.NotFound(new { Error = new { Email = "This email is not signed up!" }  });
     }
+
+    var tokens = tokenService.GenerateTokens(user.Id);
 
     var isCorrectPassword = PasswordHasher.VerifyPassword(user.Password, request.Password);
 
@@ -93,10 +122,8 @@ app.MapPost("/login", async (LoginRequest request, BookAppContext db) =>
         return Results.BadRequest(new { Error = "Wrong password. Please try again!" });
     }
 
-    return Results.Ok();
+    return Results.Ok(tokens);
 });
-
-
 
 app.MapPost("/code-verify", async (CodeVerify request, BookAppContext db) =>
 {
@@ -197,6 +224,34 @@ app.MapGet("/book/{id}", async (string id, GoogleBooksClient client) =>
 {
     return Results.Ok(await client.GetBookByVolumeId(id));
 });
+
+app.MapPost("/book", async (BookAppContext db, BookAddRequest request) =>
+{
+    var book = new Book
+    {
+        Title = request.Title,
+        Description = request.Description,
+        Author = string.Join(",", request.Authors),
+        CurrentPage = 1,
+        Status = BookStatus.ToRead,
+        TotalPages = request.TotalPages,
+    };
+
+    var bookCollections = await db.BookCollections
+        .Where(item => request.CollectionIds.Contains(item.Id))
+        .ToListAsync();
+
+    if (bookCollections.Count > 0)
+    {
+        book.BookCollections = bookCollections;
+    }
+
+    await db.Books.AddAsync(book);
+
+    await db.SaveChangesAsync();
+    
+    return Results.Created();
+}).RequireAuthorization();
 
 app.MapPut("/users/{id}/settings", async (Guid id, BookAppContext db, UserSettingsUpdateRequest request) =>
 {
@@ -437,7 +492,7 @@ public record UserRegistrationRequest(string Username, string Email, string Pass
 public record UserSettingsUpdateRequest(bool NotificationsEnabled, TimeFormat TimeFormat);
 public record GoalCreateRequest(GoalType Type, GoalPeriod Period, int Target);
 public record CollectionCreateRequest(string Name);
-public record BookAddRequest(string Title, string Description, int TotalPages);
+public record BookAddRequest(string Title, string Description, int TotalPages, string[] Authors, string[] Genres, int[] CollectionIds);
 public record QuoteCreateRequest(string Content, int Page);
 public record QuoteUpdateRequest(string Content, int Page);
 public record NoteCreateRequest(string Content, int TypeId, int? QuoteId);
