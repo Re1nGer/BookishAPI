@@ -5,6 +5,7 @@ using BookishAPI;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using JsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -45,6 +46,41 @@ builder.Services.AddAuthentication(options =>
         ValidIssuer = builder.Configuration["JWT:ValidIssuer"],
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:Secret"]))
     };
+});
+
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Bookish API",
+        Version = "v1",
+        Description = "API serving bookish application"
+    });
+
+    // Add Bearer token authentication
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
 });
 
 builder.Services.AddAuthorization();
@@ -176,7 +212,7 @@ app.MapPost("/reset-password", async (ResetPasswordRequest request, BookAppConte
 
     
 // User endpoints
-app.MapPost("/users", async (BookAppContext db, UserRegistrationRequest request) =>
+app.MapPost("/users", async (BookAppContext db, TokenService tokenService, UserRegistrationRequest request) =>
 {
     if (db.Users.Any(item => item.Email == request.Email))
     {
@@ -212,7 +248,9 @@ app.MapPost("/users", async (BookAppContext db, UserRegistrationRequest request)
     
     await db.SaveChangesAsync();
 
-    return Results.Created($"/users/{user.Id}", user);
+    var tokens = tokenService.GenerateTokens(user.Id);
+
+    return Results.Ok(tokens);
 });
 
 app.MapGet("/search/{title}", async (string title, [FromQuery] int? maxResult, GoogleBooksClient client) =>
@@ -251,17 +289,23 @@ app.MapPost("/book", async (BookAppContext db, BookAddRequest request) =>
     await db.SaveChangesAsync();
     
     return Results.Created();
+    
 }).RequireAuthorization();
 
 app.MapPut("/users/{id}/settings", async (Guid id, BookAppContext db, UserSettingsUpdateRequest request) =>
 {
-    var user = await db.Users.Include(u => u.Settings).FirstOrDefaultAsync(u => u.Id == id);
-    if (user == null) return Results.NotFound();
+    var user = await db.Users
+        .Include(u => u.Settings)
+        .FirstOrDefaultAsync(u => u.Id == id);
+    
+    if (user == null)
+        return Results.NotFound();
 
     user.Settings.NotificationsEnabled = request.NotificationsEnabled;
     user.Settings.TimeFormat = request.TimeFormat;
 
     await db.SaveChangesAsync();
+    
     return Results.NoContent();
 });
 
