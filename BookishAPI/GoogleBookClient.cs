@@ -49,9 +49,12 @@ public class GoogleBooksClient
         try
         {
             var response = await _httpClient.GetStringAsync($"{BaseUrl}/{id}");
+            
             var result = JsonSerializer.Deserialize<GoogleBooksItemDto>(response, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
+            
             var mappedCategories = _categoryMapper.MapCategories(result.VolumeInfo.Categories);
+
+            result.VolumeInfo.Description = StripHtmlTags(result.VolumeInfo.Description);
             
             result.VolumeInfo.Categories = mappedCategories
                 .Where(x => !string.IsNullOrEmpty(x.NormalizedCategory))
@@ -67,7 +70,18 @@ public class GoogleBooksClient
             throw;
         }
     }
+    private string StripHtmlTags(string input)
+    {
+        if (string.IsNullOrEmpty(input)) return input;
+        
+        return System.Text.RegularExpressions.Regex.Replace(
+            input,
+            "<[^>]*(>|$)",
+            string.Empty
+        );
+    }
 }
+
 
 public class GoogleBooksListDto
 {
