@@ -46,13 +46,13 @@ public class Book
     public string Title { get; set; }
     public Guid UserId { get; set; }
     public User User { get; set; }
-    public DateTime StartedAt { get; set; }
-    public DateTime FinishedAt { get; set; }
+    public DateTime? StartedAt { get; set; }
+    public DateTime? FinishedAt { get; set; }
     public string Description { get; set; }
     public string Author { get; set; }
     public string ImageUrl { get; set; }
-    public string FinalThoughts { get; set; }
-    public string FinalThoughtsImage { get; set; }
+    public string? FinalThoughts { get; set; }
+    public string? FinalThoughtsImage { get; set; }
     public BookStatus Status { get; set; }
     public List<BookCollection> BookCollections { get; set; }
     public List<Genre> Genres { get; set; }

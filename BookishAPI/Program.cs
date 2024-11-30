@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
@@ -264,8 +265,13 @@ app.MapGet("/book/{id}", async (string id, GoogleBooksClient client) =>
     return Results.Ok(await client.GetBookByVolumeId(id));
 });
 
-app.MapPost("/book", async (BookAppContext db, BookAddRequest request) =>
+app.MapPost("/book", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, BookAddRequest request) =>
 {
+
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+    //gotta handle image url
+    
     var book = new Book
     {
         Title = request.Title,
@@ -273,7 +279,9 @@ app.MapPost("/book", async (BookAppContext db, BookAddRequest request) =>
         Author = string.Join(",", request.Authors),
         CurrentPage = 1,
         Status = BookStatus.ToRead,
+        ImageUrl = "",
         TotalPages = request.TotalPages,
+        UserId = Guid.Parse(userId)
     };
 
     var bookCollections = await db.BookCollections
