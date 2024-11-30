@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Text;
 using Microsoft.IdentityModel.Tokens;
 
 namespace BookishAPI;
@@ -25,9 +26,10 @@ public class TokenService
         var claims = new List<Claim>
         {
             new (ClaimTypes.NameIdentifier, userId.ToString()),
+            new (JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
-
-        var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(
+        
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
             _configuration["JWT:Secret"]));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 

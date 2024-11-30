@@ -40,11 +40,12 @@ builder.Services.AddAuthentication(options =>
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
-        ValidateAudience = true,
+        ValidateAudience = false,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
         ValidIssuer = builder.Configuration["JWT:ValidIssuer"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:Secret"]))
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:Secret"])),
+        ClockSkew = TimeSpan.Zero
     };
 });
 
@@ -536,7 +537,7 @@ public record UserRegistrationRequest(string Username, string Email, string Pass
 public record UserSettingsUpdateRequest(bool NotificationsEnabled, TimeFormat TimeFormat);
 public record GoalCreateRequest(GoalType Type, GoalPeriod Period, int Target);
 public record CollectionCreateRequest(string Name);
-public record BookAddRequest(string Title, string Description, int TotalPages, string[] Authors, string[] Genres, int[] CollectionIds);
+public record BookAddRequest(string Title, string Description, int TotalPages, string[] Authors, string[] Categories, int[] CollectionIds);
 public record QuoteCreateRequest(string Content, int Page);
 public record QuoteUpdateRequest(string Content, int Page);
 public record NoteCreateRequest(string Content, int TypeId, int? QuoteId);
