@@ -354,14 +354,18 @@ app.MapPost("/users/{userId}/goals", async (Guid userId, GoalCreateRequest reque
 });
 
 // Collection endpoints
-app.MapPost("/users/{userId}/collections", async (Guid userId, CollectionCreateRequest request, BookAppContext db) =>
+app.MapPost("/users/{userId}/collections", async (ClaimsPrincipal claimsPrincipal, CollectionCreateRequest request, BookAppContext db) =>
 {
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+    
     var user = await db.Users.FindAsync(userId);
+    
     if (user == null) return Results.NotFound();
 
     var collection = new BookCollection
     {
-        UserId = userId,
+        UserId = Guid.Parse(userId),
         Name = request.Name
     };
 
@@ -369,7 +373,8 @@ app.MapPost("/users/{userId}/collections", async (Guid userId, CollectionCreateR
     await db.SaveChangesAsync();
 
     return Results.Created($"/collections/{collection.Id}", collection);
-});
+    
+}).RequireAuthorization();
 
 app.MapPost("/collections/{collectionId}/books", async (int collectionId, BookAddRequest request, BookAppContext db) =>
 {
@@ -443,7 +448,7 @@ app.MapDelete("/quotes/{id}", async (int id, BookAppContext db) =>
     await db.SaveChangesAsync();
 
     return Results.NoContent();
-});
+}).RequireAuthorization();
 
 // Note endpoints
 app.MapPost("/books/{bookId}/note", async (int bookId, NoteCreateRequest request, BookAppContext db) =>
@@ -464,7 +469,7 @@ app.MapPost("/books/{bookId}/note", async (int bookId, NoteCreateRequest request
     await db.SaveChangesAsync();
 
     return Results.Created($"/notes/{note.Id}", note);
-});
+}).RequireAuthorization();
 
 app.MapPost("/books/{bookId}/quote", async (int bookId, NoteCreateRequest request, BookAppContext db) =>
 {
@@ -484,7 +489,7 @@ app.MapPost("/books/{bookId}/quote", async (int bookId, NoteCreateRequest reques
     await db.SaveChangesAsync();
 
     return Results.Created($"/quotes/{quote.Id}", quote);
-});
+}).RequireAuthorization();
 
 // Spaced Repetition Group endpoints
 app.MapPost("/users/{userId}/spaced-repetition-groups",
@@ -525,7 +530,7 @@ app.MapPost("/spaced-repetition-groups/{groupId}/quote",
     await db.SaveChangesAsync();
     
     return Results.NoContent();
-});
+}).RequireAuthorization();
 
 // Search endpoints
 app.MapGet("/quotes/search", async (string query, BookAppContext db) =>
