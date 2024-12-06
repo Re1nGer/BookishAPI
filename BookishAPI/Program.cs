@@ -116,8 +116,16 @@ app.MapGet("/test", async (MailerSendService service, CodeGenerator generator) =
         "verification email", $"here's your verification code {generator.Generate4DigitCode()}"));
 });
 
+app.MapGet("/categories", async () =>
+{
+    return Results.Ok(Categories.categories.Select((item, id) => new { item, id }));
+});
 
-app.MapPost("/forgot-password", async (ForgotPasswordRequest request, BookAppContext db, MailerSendService service, CodeGenerator generator) =>
+app.MapPost("/forgot-password", async (
+    ForgotPasswordRequest request,
+    BookAppContext db,
+    MailerSendService service,
+    CodeGenerator generator) =>
 {
     var user = await db.Users
         .FirstOrDefaultAsync(item => item.Email == request.Email);
