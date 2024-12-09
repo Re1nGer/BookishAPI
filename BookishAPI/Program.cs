@@ -362,7 +362,7 @@ app.MapPost("/users/{userId}/goals", async (Guid userId, GoalCreateRequest reque
 });
 
 // Collection endpoints
-app.MapPost("/users/{userId}/collections", async (ClaimsPrincipal claimsPrincipal, CollectionCreateRequest request, BookAppContext db) =>
+app.MapPost("/users/collections", async (ClaimsPrincipal claimsPrincipal, CollectionCreateRequest request, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
         .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
