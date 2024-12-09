@@ -366,8 +366,10 @@ app.MapPost("/users/collections", async (ClaimsPrincipal claimsPrincipal, Collec
 {
     var userId = claimsPrincipal.Claims
         .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+    var parsedUserId = Guid.Parse(userId);
     
-    var user = await db.Users.FindAsync(userId);
+    var user = await db.Users.FirstOrDefaultAsync(item => item.Id == parsedUserId);
     
     if (user == null) return Results.NotFound();
 
