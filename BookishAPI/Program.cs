@@ -386,6 +386,22 @@ app.MapPost("/users/collections", async (ClaimsPrincipal claimsPrincipal, Collec
     
 }).RequireAuthorization();
 
+app.MapGet("/users/collections", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+    var parsedUserId = Guid.Parse(userId);
+    
+    var collections = await db.BookCollections
+        .Include(item => item.User)
+        .Where(item => item.User.Id == parsedUserId)
+        .ToListAsync();
+
+    return Results.Ok(collections);
+    
+}).RequireAuthorization();
+
 app.MapPost("/collections/{collectionId}/books", async (int collectionId, BookAddRequest request, BookAppContext db) =>
 {
     var collection = await db.BookCollections.FindAsync(collectionId);
