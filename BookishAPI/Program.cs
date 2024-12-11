@@ -279,21 +279,49 @@ app.MapPost("/book", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, 
     var userId = claimsPrincipal.Claims
         .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
     //gotta handle image url
+
+    var parsedUserId = Guid.Parse(userId);
+
+    var bookExists = await db.Books.AnyAsync(item => item.Title == request.Title)
+                     && await db.Books.AnyAsync(item => item.Author == string.Join(",", request.Authors));
+
+    if (bookExists)
+    {
+        return Results.BadRequest("The book already exists");
+    }
+
+    var genres = request.Categories.Select(item => new Genre
+    {
+        Name = item
+    }).ToList();
     
+    
+    //if book 
     var book = new Book
     {
         Title = request.Title,
         Description = request.Description,
         Author = string.Join(",", request.Authors),
         CurrentPage = 1,
-        Status = BookStatus.ToRead,
-        ImageUrl = "",
+        Genres = genres,
+        Status = (BookStatus)request.Status,
+        ImageUrl = request.ImageUrl,
         TotalPages = request.TotalPages,
-        UserId = Guid.Parse(userId)
+        UserId = Guid.Parse(userId),
     };
 
+    switch (request.Status)
+    {
+        case (int)BookStatus.Reading:
+            book.StartedAt = DateTime.UtcNow;
+            break;
+        case (int)BookStatus.Finished:
+            book.FinishedAt = DateTime.UtcNow;
+            break;
+    }
+
     var bookCollections = await db.BookCollections
-        .Where(item => request.CollectionIds.Contains(item.Id))
+        .Where(item => request.CollectionIds.Contains(item.Id) && item.UserId == parsedUserId)
         .ToListAsync();
 
     if (bookCollections.Count > 0)
@@ -309,13 +337,16 @@ app.MapPost("/book", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, 
     
 }).RequireAuthorization();
 
-app.MapPut("/users/{id}/settings", async (Guid id, BookAppContext db, UserSettingsUpdateRequest request) =>
+app.MapPut("/users/settings", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, UserSettingsUpdateRequest request) =>
 {
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+    
     var user = await db.Users
         .Include(u => u.Settings)
-        .FirstOrDefaultAsync(u => u.Id == id);
+        .FirstOrDefaultAsync(u => u.Id == Guid.Parse(userId));
     
-    if (user == null)
+    if (user is null)
         return Results.NotFound();
 
     user.Settings.NotificationsEnabled = request.NotificationsEnabled;
@@ -342,14 +373,16 @@ app.MapPost("/users/{id}/verify-email", async (Guid id, string token, BookAppCon
 });
 
 // Goal endpoints
-app.MapPost("/users/{userId}/goals", async (Guid userId, GoalCreateRequest request, BookAppContext db) =>
+app.MapPost("/users/goals", async (ClaimsPrincipal claimsPrincipal, GoalCreateRequest request, BookAppContext db) =>
 {
-    var user = await db.Users.FindAsync(userId);
-    if (user == null) return Results.NotFound();
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+        
+    if (userId is null) return Results.NotFound();
 
     var goal = new Goal
     {
-        UserId = userId,
+        UserId = Guid.Parse(userId),
         Type = request.Type,
         Period = request.Period,
         Target = request.Target
@@ -396,6 +429,7 @@ app.MapGet("/users/collections", async (ClaimsPrincipal claimsPrincipal, BookApp
     var collections = await db.BookCollections
         .Include(item => item.User)
         .Where(item => item.User.Id == parsedUserId)
+        .OrderByDescending(item => item.Id)
         .ToListAsync();
 
     return Results.Ok(collections);
@@ -404,9 +438,10 @@ app.MapGet("/users/collections", async (ClaimsPrincipal claimsPrincipal, BookApp
 
 app.MapPost("/collections/{collectionId}/books", async (int collectionId, BookAddRequest request, BookAppContext db) =>
 {
-    var collection = await db.BookCollections.FindAsync(collectionId);
+    var collection = await db.BookCollections
+        .FirstOrDefaultAsync(item => item.Id == collectionId);
     
-    if (collection == null) return Results.NotFound();
+    if (collection is null) return Results.NotFound();
 
     var book = new Book
     {
@@ -420,11 +455,14 @@ app.MapPost("/collections/{collectionId}/books", async (int collectionId, BookAd
     await db.SaveChangesAsync();
 
     return Results.Created($"/books/{book.Id}", book);
-});
+}).RequireAuthorization();
 
 app.MapDelete("/collections/{collectionId}/books/{bookId}", async (int collectionId, int bookId, BookAppContext db) =>
 {
-    var collection = await db.BookCollections.Include(c => c.Books).FirstOrDefaultAsync(c => c.Id == collectionId);
+    var collection = await db.BookCollections
+        .Include(c => c.Books)
+        .FirstOrDefaultAsync(c => c.Id == collectionId);
+    
     if (collection == null) return Results.NotFound();
 
     var book = collection.Books.FirstOrDefault(b => b.Id == bookId);
@@ -434,12 +472,14 @@ app.MapDelete("/collections/{collectionId}/books/{bookId}", async (int collectio
     await db.SaveChangesAsync();
 
     return Results.NoContent();
-});
+}).RequireAuthorization();
 
 // Quote endpoints
 app.MapPost("/books/{bookId}/quotes", async (int bookId, QuoteCreateRequest request, BookAppContext db) =>
 {
-    var book = await db.Books.FindAsync(bookId);
+    var book = await db.Books
+        .FirstOrDefaultAsync(item => item.Id == bookId);
+    
     if (book == null) return Results.NotFound();
 
     var quote = new Quote
@@ -452,7 +492,8 @@ app.MapPost("/books/{bookId}/quotes", async (int bookId, QuoteCreateRequest requ
     await db.SaveChangesAsync();
 
     return Results.Created($"/quotes/{quote.Id}", quote);
-});
+    
+}).RequireAuthorization();
 
 app.MapPut("/quotes/{id}", async (int id, QuoteUpdateRequest request, BookAppContext db) =>
 {
@@ -463,7 +504,7 @@ app.MapPut("/quotes/{id}", async (int id, QuoteUpdateRequest request, BookAppCon
 
     await db.SaveChangesAsync();
     return Results.NoContent();
-});
+}).RequireAuthorization();
 
 app.MapDelete("/quotes/{id}", async (int id, BookAppContext db) =>
 {
@@ -519,14 +560,21 @@ app.MapPost("/books/{bookId}/quote", async (int bookId, NoteCreateRequest reques
 
 // Spaced Repetition Group endpoints
 app.MapPost("/users/{userId}/spaced-repetition-groups",
-    async (Guid userId, SpacedRepetitionGroupCreateRequest request, BookAppContext db) =>
+    async (ClaimsPrincipal claimsPrincipal, SpacedRepetitionGroupCreateRequest request, BookAppContext db) =>
 {
-    var user = await db.Users.FindAsync(userId);
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+    var parsedUserId = Guid.Parse(userId);
+    
+    var user = await db.Users
+        .FirstOrDefaultAsync(item => item.Id == parsedUserId);
+    
     if (user == null) return Results.NotFound();
 
     var group = new SpacedRepetitionGroup
     {
-        UserId = userId,
+        UserId = parsedUserId,
         Name = request.Name,
         RemindAt = request.RemindAt
     };
@@ -535,7 +583,7 @@ app.MapPost("/users/{userId}/spaced-repetition-groups",
     await db.SaveChangesAsync();
 
     return Results.Created($"/spaced-repetition-groups/{group.Id}", group);
-});
+}).RequireAuthorization();
 
 app.MapPost("/spaced-repetition-groups/{groupId}/quote",
     async (int groupId, SpacedRepetitionItemAddRequest request, BookAppContext db) =>
@@ -576,7 +624,16 @@ public record UserRegistrationRequest(string Username, string Email, string Pass
 public record UserSettingsUpdateRequest(bool NotificationsEnabled, TimeFormat TimeFormat);
 public record GoalCreateRequest(GoalType Type, GoalPeriod Period, int Target);
 public record CollectionCreateRequest(string Name);
-public record BookAddRequest(string Title, string Description, int TotalPages, string[] Authors, string[] Categories, int[] CollectionIds);
+public record BookAddRequest(
+        string Title,
+        string Description,
+        int TotalPages,
+        string[] Authors,
+        string[] Categories,
+        int[] CollectionIds,
+        string? ImageUrl,
+        int Status
+);
 public record QuoteCreateRequest(string Content, int Page);
 public record QuoteUpdateRequest(string Content, int Page);
 public record NoteCreateRequest(string Content, int TypeId, int? QuoteId);
