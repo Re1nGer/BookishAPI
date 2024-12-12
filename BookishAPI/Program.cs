@@ -329,6 +329,20 @@ app.MapPut("/users/book/{id}/status", async (ClaimsPrincipal claimsPrincipal, in
         .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
     
     var parsedUserId = Guid.Parse(userId);
+
+    var book = await db.Books
+        .FirstOrDefaultAsync(item => item.Id == id && item.UserId == parsedUserId);
+
+    if (book is null)
+    {
+        return Results.NotFound();
+    }
+
+    book.Status = (BookStatus)statusId;
+
+    db.Books.Update(book);
+
+    await db.SaveChangesAsync();
     
     return Results.Ok();
 
