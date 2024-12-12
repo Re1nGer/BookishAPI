@@ -348,6 +348,52 @@ app.MapPut("/users/book/{id}/status", async (ClaimsPrincipal claimsPrincipal, in
 
 }).RequireAuthorization();
 
+app.MapGet("/users/books", async (ClaimsPrincipal claimsPrincipal,
+    int[]? statuses,
+    string[]? authors,
+    string[]? categories,
+    int[]? collections,
+    BookAppContext db) =>
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+    
+    var parsedUserId = Guid.Parse(userId);
+
+    var books = db.Books
+        .Include(item => item.Genres)
+        .Include(item => item.BookCollections)
+        .AsNoTracking()
+        .Where(item => item.UserId == parsedUserId);
+
+    if (statuses?.Length > 0)
+    {
+        books = books.Where(item => statuses.Contains((int)item.Status));
+    }
+    
+    if (authors?.Length > 0)
+    {
+        books = books.Where(item => authors.Contains(item.Author)); //Could be some problems here
+    }
+    
+    if (categories?.Length > 0)
+    {
+        var normalizedCategories = categories.Select(c => c.ToUpper()).ToArray();
+        
+        books = books.Where(item => item.Genres
+                .Any(k => normalizedCategories.Contains(k.Name.ToUpper())));
+    }
+    
+    if (collections?.Length > 0)
+    {
+        books = books.Where(item => item.BookCollections
+            .Any(k => collections.Contains(k.Id)));
+    }
+
+    return Results.Ok(await books.ToListAsync());
+
+}).RequireAuthorization();
+
 app.MapPost("/book", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, BookAddRequest request) =>
 {
 
@@ -694,6 +740,8 @@ app.MapGet("/quotes/search", async (string query, BookAppContext db) =>
 app.Run();
 
 // Request DTOs
+
+//Extract out into separate folder
 public record LoginRequest(string Email, string? Password);
 public record UserRegistrationRequest(string Username, string Email, string Password);
 public record UserSettingsUpdateRequest(bool NotificationsEnabled, TimeFormat TimeFormat);
@@ -718,6 +766,16 @@ public record ForgotPasswordRequest(string Email);
 public record CodeVerify(string Code, string Email);
 public record ResetPasswordRequest(string NewPassword, string NewPasswordRepeated, string Email, string VerificationCode);
 
+//public record BookFilters(int[] Statuses, string[] Authors, string[] Categories, int[] Collections);
+public class BookFilters
+{
+    public int[] Statuses { get; set; }
+    public string[] Authors { get; set; }
+    public string[] Categories { get; set; }
+    public int[] Collections { get; set; }
+}
+
+//Dtos
 public record BookDto(
     int Id,
     string Title,
@@ -738,6 +796,7 @@ public record CategoryDto(int Id, string Name);
 
 public record CollectionDto(int Id, string Name);
 
+//TODO: Fill in properties
 public record QuoteDto();
 
 // Error Objects
