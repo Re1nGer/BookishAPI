@@ -273,6 +273,56 @@ app.MapGet("/book/{id}", async (string id, GoogleBooksClient client) =>
     return Results.Ok(await client.GetBookByVolumeId(id));
 });
 
+app.MapGet("/users/book/{id}", async (ClaimsPrincipal claimsPrincipal, int id, BookAppContext db) =>
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+    
+    var parsedUserId = Guid.Parse(userId);
+
+    var book = await db.Books
+        .Include(item => item.Notes)
+        .ThenInclude(item => item.Type)
+        .Include(item => item.BookCollections)
+        .Include(item => item.Quotes)
+        .Include(item => item.Genres)
+        .AsSplitQuery()
+        .FirstOrDefaultAsync(item => item.Id == id && item.UserId == parsedUserId);
+
+    if (book is null)
+    {
+        return Results.NotFound("Book not found");
+    }
+
+
+    var bookDto = new BookDto(
+        Id: book.Id,
+        Title: book.Title,
+        Description: book.Description,
+        PageCount: book.TotalPages,
+        CurrentPage: book.CurrentPage,
+        Author: book.Author,
+        Status: (int)book.Status,
+        ImageUrl: book.ImageUrl,
+        Categories: book.Genres.Select(item =>  //Extract into separate map method
+            new CategoryDto(item.Id, item.Name)).ToList(),
+        Notes: book.Notes
+            .Select(item => 
+                new NoteDto(Id: item.Id,
+                Content: item.Content,
+                TypeName: item.Type.Name,
+                Color: item.Type.Color,
+                Icon: item.Type.Icon)
+            ).ToList(),
+        Collections: book.BookCollections.Select(item =>
+            new CollectionDto(item.Id, item.Name)).ToList(),
+        Quotes: book.Quotes.Select(item =>
+            new QuoteDto()).ToList());
+
+    return Results.Ok(bookDto);
+
+}).RequireAuthorization();
+
 app.MapPost("/book", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, BookAddRequest request) =>
 {
 
@@ -333,7 +383,7 @@ app.MapPost("/book", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, 
 
     await db.SaveChangesAsync();
     
-    return Results.Created();
+    return Results.Ok(new { book.Id });
     
 }).RequireAuthorization();
 
@@ -643,6 +693,27 @@ public record ForgotPasswordRequest(string Email);
 public record CodeVerify(string Code, string Email);
 public record ResetPasswordRequest(string NewPassword, string NewPasswordRepeated, string Email, string VerificationCode);
 
+public record BookDto(
+    int Id,
+    string Title,
+    string Author,
+    string Description,
+    int PageCount,
+    int CurrentPage,
+    List<CategoryDto> Categories,
+    string ImageUrl,
+    int Status,
+    List<NoteDto> Notes,
+    List<CollectionDto> Collections,
+    List<QuoteDto> Quotes
+);
+
+public record NoteDto(int Id, string Content, string TypeName, string Color, string Icon);
+public record CategoryDto(int Id, string Name);
+
+public record CollectionDto(int Id, string Name);
+
+public record QuoteDto();
 
 // Error Objects
 
