@@ -323,6 +323,17 @@ app.MapGet("/users/book/{id}", async (ClaimsPrincipal claimsPrincipal, int id, B
 
 }).RequireAuthorization();
 
+app.MapPut("/users/book/{id}/status", async (ClaimsPrincipal claimsPrincipal, int id, int statusId, BookAppContext db) =>
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+    
+    var parsedUserId = Guid.Parse(userId);
+    
+    return Results.Ok();
+
+}).RequireAuthorization();
+
 app.MapPost("/book", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, BookAddRequest request) =>
 {
 
@@ -676,10 +687,10 @@ public record GoalCreateRequest(GoalType Type, GoalPeriod Period, int Target);
 public record CollectionCreateRequest(string Name);
 public record BookAddRequest(
         string Title,
-        string Description,
+        string? Description,
         int TotalPages,
         string[] Authors,
-        string[] Categories,
+        string[]? Categories,
         int[] CollectionIds,
         string? ImageUrl,
         int Status
