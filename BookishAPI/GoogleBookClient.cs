@@ -21,7 +21,7 @@ public class GoogleBooksClient
         try
         {
             var query = Uri.EscapeDataString(title);
-            var response = await _httpClient.GetStringAsync($"{BaseUrl}?q={query}&maxResults={maxResult}&filter=full&printType=books");
+            var response = await _httpClient.GetStringAsync($"{BaseUrl}?q={query}&maxResults={maxResult}");
             var result = JsonSerializer.Deserialize<GoogleBooksListDto>(response, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             
             foreach (var book in result.Items)
