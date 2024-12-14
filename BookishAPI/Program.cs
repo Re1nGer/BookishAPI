@@ -340,6 +340,21 @@ app.MapPut("/users/book/{id}/status", async (ClaimsPrincipal claimsPrincipal, in
 
     book.Status = (BookStatus)statusId;
 
+    switch (book.Status)
+    {
+        case BookStatus.Finished:
+            book.FinishedAt = DateTime.UtcNow;
+            break;
+        case BookStatus.ToRead:
+            book.FinishedAt = null;
+            book.StartedAt = null;
+            break;
+        case BookStatus.Reading:
+            book.FinishedAt = null;
+            book.StartedAt = DateTime.UtcNow;
+            break;
+    }
+
     db.Books.Update(book);
 
     await db.SaveChangesAsync();
@@ -389,6 +404,9 @@ app.MapGet("/users/books", async (ClaimsPrincipal claimsPrincipal,
         books = books.Where(item => item.BookCollections
             .Any(k => collections.Contains(k.Id)));
     }
+
+    books = books
+        .OrderByDescending(item => item.StartedAt);
 
     return Results.Ok(await books.ToListAsync());
 
@@ -477,6 +495,38 @@ app.MapPut("/users/settings", async (ClaimsPrincipal claimsPrincipal, BookAppCon
     
     return Results.NoContent();
 });
+
+app.MapPut("/users/books/{id}/currentPage", async (
+    ClaimsPrincipal claimsPrincipal,
+    int id,
+    BookCurrentPageUpdateRequest request,
+    BookAppContext db) =>
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+    var parsedUserId = Guid.Parse(userId);
+
+    var book = await db.Books
+        .FirstOrDefaultAsync(item => item.Id == id && item.UserId == parsedUserId);
+
+    if (book is null)
+    {
+        return Results.NotFound();
+    }
+
+    if (book.TotalPages < request.Page)
+    {
+        return Results.BadRequest(new { Error = "Page is greater than total pages in the book" });
+    }
+
+    book.CurrentPage = request.Page;
+    
+    await db.SaveChangesAsync();
+    
+    return Results.Ok();
+    
+}).RequireAuthorization();
 
 app.MapPost("/users/{id}/verify-email", async (Guid id, string token, BookAppContext db) =>
 {
@@ -594,6 +644,7 @@ app.MapDelete("/collections/{collectionId}/books/{bookId}", async (int collectio
 
     return Results.NoContent();
 }).RequireAuthorization();
+
 
 // Quote endpoints
 app.MapPost("/books/{bookId}/quotes", async (int bookId, QuoteCreateRequest request, BookAppContext db) =>
@@ -765,6 +816,8 @@ public record SpacedRepetitionItemAddRequest(int? QuoteId, int? NoteId);
 public record ForgotPasswordRequest(string Email);
 public record CodeVerify(string Code, string Email);
 public record ResetPasswordRequest(string NewPassword, string NewPasswordRepeated, string Email, string VerificationCode);
+
+public record BookCurrentPageUpdateRequest(int Page);
 
 //public record BookFilters(int[] Statuses, string[] Authors, string[] Categories, int[] Collections);
 public class BookFilters
