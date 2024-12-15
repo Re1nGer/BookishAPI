@@ -414,6 +414,30 @@ app.MapGet("/users/books", async (ClaimsPrincipal claimsPrincipal,
 
 }).RequireAuthorization();
 
+app.MapGet("/users/books/authors", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+    
+    var parsedUserId = Guid.Parse(userId);
+
+    var books = await db.Books
+        .AsNoTracking()
+        .Where(item => item.UserId == parsedUserId)
+        .Select(item => item.Author).ToListAsync();
+
+    var authorDtos = books
+        .SelectMany(authorString => authorString?.Split(',') ?? Array.Empty<string>())
+        .Select(author => author.Trim())
+        .Where(author => !string.IsNullOrWhiteSpace(author))
+        .Distinct()
+        .Select((authorName, index) => new AuthorDto(index, authorName))
+        .ToList();
+
+    return Results.Ok(authorDtos);
+
+}).RequireAuthorization();
+
 app.MapPost("/book", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, BookAddRequest request) =>
 {
 
@@ -477,6 +501,8 @@ app.MapPost("/book", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, 
     return Results.Ok(new { book.Id });
     
 }).RequireAuthorization();
+
+
 
 app.MapPut("/users/settings", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, UserSettingsUpdateRequest request) =>
 {
@@ -905,6 +931,8 @@ public record BookDto(
 
 public record NoteDto(int Id, string Content, string TypeName, string Color, string Icon);
 public record CategoryDto(int Id, string Name);
+
+public record AuthorDto(int Id, string Author);
 
 public record CollectionDto(int Id, string Name);
 
