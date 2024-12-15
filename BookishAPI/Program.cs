@@ -932,7 +932,7 @@ public record BookDto(
 public record NoteDto(int Id, string Content, string TypeName, string Color, string Icon);
 public record CategoryDto(int Id, string Name);
 
-public record AuthorDto(int Id, string Author);
+public record AuthorDto(int Id, string Name);
 
 public record CollectionDto(int Id, string Name);
 
