@@ -408,7 +408,7 @@ app.MapGet("/users/books", async (ClaimsPrincipal claimsPrincipal,
     }
 
     books = books
-        .OrderByDescending(item => item.StartedAt);
+        .OrderBy(item => item.StartedAt);
 
     return Results.Ok(await books.ToListAsync());
 
@@ -692,8 +692,13 @@ app.MapDelete("/quotes/{id}", async (int id, BookAppContext db) =>
 }).RequireAuthorization();
 
 // Note endpoints
-app.MapPost("/books/{bookId}/note", async (int bookId, NoteCreateRequest request, BookAppContext db) =>
+app.MapPost("/books/{bookId}/note", async (ClaimsPrincipal claimsPrincipal, int bookId, NoteCreateRequest request, BookAppContext db) =>
 {
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+    var parsedUserId = Guid.Parse(userId);
+    
     var book = await db.Books
         .FirstOrDefaultAsync(item => item.Id == bookId);
     
@@ -705,11 +710,60 @@ app.MapPost("/books/{bookId}/note", async (int bookId, NoteCreateRequest request
         Content = request.Content,
     };
 
+    //Need to associate note with the user
+    var noteType = await db.NoteTypes
+        .FirstOrDefaultAsync(item => item.Id == request.TypeId);
+
+    if (noteType is null)
+    {
+        return Results.NotFound("Note Type is not found");
+    }
+    
+    note.Type = noteType;
+
+    var repetitionGroups = await db.SpacedRepetitionGroups
+        .Where(item => request.RepetitionGroupIds.Contains(item.Id) && item.UserId == parsedUserId)
+        .ToListAsync();
+
+    if (repetitionGroups.Count > 0)
+    {
+        note.SpacedRepetitionGroups = repetitionGroups;
+    }
+
+    var quote = await db.Quotes
+        .Include(item => item.Book)
+        .FirstOrDefaultAsync(item =>
+            item.Id == request.QuoteId
+            && item.BookId == bookId
+            && item.Book.UserId == parsedUserId);
+
+    if (quote is not null)
+    {
+        note.RelatedQuote = quote;
+    }
+
     db.Notes.Add(note);
     
     await db.SaveChangesAsync();
 
     return Results.Created($"/notes/{note.Id}", note);
+}).RequireAuthorization();
+
+app.MapPost("/users/note/type", async (NoteTypeCreateRequest request, BookAppContext db) =>
+{
+    var noteType = new NoteType
+    {
+        Name = request.Name,
+        Color = request.Color,
+        Icon = request.Icon
+    };
+    
+    db.NoteTypes.Add(noteType);
+    
+    await db.SaveChangesAsync();
+
+    return Results.Ok();
+    
 }).RequireAuthorization();
 
 app.MapPost("/books/{bookId}/quote", async (int bookId, NoteCreateRequest request, BookAppContext db) =>
@@ -812,7 +866,8 @@ public record BookAddRequest(
 );
 public record QuoteCreateRequest(string Content, int Page);
 public record QuoteUpdateRequest(string Content, int Page);
-public record NoteCreateRequest(string Content, int TypeId, int? QuoteId);
+public record NoteCreateRequest(string Content, int TypeId, int? QuoteId, int[]? CollectionIds, int[]? RepetitionGroupIds);
+public record NoteTypeCreateRequest(string Color, string Name, string Icon);
 public record SpacedRepetitionGroupCreateRequest(string Name, DateTime RemindAt);
 public record SpacedRepetitionItemAddRequest(int? QuoteId, int? NoteId);
 public record ForgotPasswordRequest(string Email);
