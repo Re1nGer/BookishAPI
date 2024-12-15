@@ -624,11 +624,11 @@ app.MapGet("/users/collections", async (ClaimsPrincipal claimsPrincipal, BookApp
         .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
 
     var parsedUserId = Guid.Parse(userId);
-    
+
     var collections = await db.BookCollections
-        .Include(item => item.User)
-        .Where(item => item.User.Id == parsedUserId)
+        .Where(item => item.UserId == parsedUserId)
         .OrderByDescending(item => item.Id)
+        .Select(item => new CollectionDto(item.Id, item.Name))
         .ToListAsync();
 
     return Results.Ok(collections);
