@@ -414,6 +414,25 @@ app.MapGet("/users/books", async (ClaimsPrincipal claimsPrincipal,
 
 }).RequireAuthorization();
 
+//endpoint for getting books used as a part of notes filter
+app.MapGet("/users/notes/books", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+    
+    var parsedUserId = Guid.Parse(userId);
+
+    var books = db.Books
+        .AsNoTracking()
+        .Where(item => item.UserId == parsedUserId);
+
+    books = books
+        .OrderBy(item => item.StartedAt);
+
+    return Results.Ok(await books.Select(item => new NoteBookDto(item.Id, item.Title)).ToListAsync());
+
+}).RequireAuthorization();
+
 app.MapGet("/users/books/authors", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -903,13 +922,6 @@ public record ResetPasswordRequest(string NewPassword, string NewPasswordRepeate
 public record BookCurrentPageUpdateRequest(int Page);
 
 //public record BookFilters(int[] Statuses, string[] Authors, string[] Categories, int[] Collections);
-public class BookFilters
-{
-    public int[] Statuses { get; set; }
-    public string[] Authors { get; set; }
-    public string[] Categories { get; set; }
-    public int[] Collections { get; set; }
-}
 
 //Dtos
 public record BookDto(
@@ -928,6 +940,8 @@ public record BookDto(
     List<CollectionDto> Collections,
     List<QuoteDto> Quotes
 );
+
+public record NoteBookDto(int Id, string Name);
 
 public record NoteDto(int Id, string Content, string TypeName, string Color, string Icon);
 public record CategoryDto(int Id, string Name);
