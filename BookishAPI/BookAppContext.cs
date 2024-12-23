@@ -23,6 +23,9 @@ public class User
     public string Email { get; set; }
     public bool IsEmailVerified { get; set; }
     public string? Password { get; set; }
+    public List<NoteType> NoteTypes { get; set; }
+    public List<NoteCollection> NoteCollections { get; set; }
+    public List<QuoteCollection> QuoteCollections { get; set; }
     public List<Book> Books { get; set; }
     public List<BookCollection> Collections { get; set; }
     public List<Goal> Goals { get; set; }
@@ -40,6 +43,24 @@ public class BookCollection
     public List<Book> Books { get; set; }
 }
 
+public class NoteCollection
+{
+    public int Id { get; set; }
+    public string Name { get; set; }
+    public Guid UserId { get; set; }
+    public User User { get; set; }
+    public List<Note> Notes { get; set; }
+}
+
+public class QuoteCollection
+{
+    public int Id { get; set; }
+    public string Name { get; set; }
+    public Guid UserId { get; set; }
+    public User User { get; set; }
+    public List<Quote> Quotes { get; set; }
+}
+
 public class Book
 {
     public int Id { get; set; }
@@ -48,6 +69,7 @@ public class Book
     public User User { get; set; }
     public DateTime? StartedAt { get; set; }
     public DateTime? FinishedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
     public string Description { get; set; }
     public string Author { get; set; }
     public string ImageUrl { get; set; }
@@ -75,10 +97,22 @@ public class Note
     public int Id { get; set; }
     public string Content { get; set; }
     public int BookId { get; set; }
+    public DateTime CreatedAt { get; set; }
     public Book Book { get; set; }
     public NoteType Type { get; set; }
     public Quote? RelatedQuote { get; set; }
     public List<SpacedRepetitionGroup> SpacedRepetitionGroups { get; set; }
+    public List<NoteCollection> NoteCollections { get; set; }
+    public List<NoteImage> NoteImages { get; set; }
+}
+
+public class NoteImage
+{
+    public int Id { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public string ImageUrl { get; set; }
+    public Note Note { get; set; }
+    public int NoteId { get; set; }
 }
 
 public class NoteType
@@ -87,6 +121,8 @@ public class NoteType
     public string Name { get; set; }
     public string Color { get; set; }
     public string Icon { get; set; }
+    public Guid UserId { get; set; }
+    public User User { get; set; }
 }
 
 public class Quote
@@ -97,6 +133,7 @@ public class Quote
     public Book Book { get; set; }
     public List<Note> RelatedNotes { get; set; }
     public List<SpacedRepetitionGroup> SpacedRepetitionGroups { get; set; }
+    public List<QuoteCollection> QuoteCollections { get; set; }
 }
 
 public class Goal
@@ -199,6 +236,8 @@ public class BookAppContext : DbContext
     public DbSet<ReadingSession> ReadingSessions { get; set; }
     public DbSet<UserSettings> UserSettings { get; set; }
     public DbSet<VerificationCode> VerificationCodes { get; set; }
+    public DbSet<NoteCollection> NoteCollections { get; set; }
+    public DbSet<QuoteCollection> QuoteCollections { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

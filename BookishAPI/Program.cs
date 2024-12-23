@@ -654,6 +654,23 @@ app.MapGet("/users/collections", async (ClaimsPrincipal claimsPrincipal, BookApp
     
 }).RequireAuthorization();
 
+app.MapGet("/users/note-collections", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+    var parsedUserId = Guid.Parse(userId);
+
+    var collections = await db.NoteCollections
+        .Where(item => item.UserId == parsedUserId)
+        .OrderByDescending(item => item.Id)
+        .Select(item => new CollectionDto(item.Id, item.Name))
+        .ToListAsync();
+
+    return Results.Ok(collections);
+    
+}).RequireAuthorization();
+
 app.MapPost("/collections/{collectionId}/books", async (int collectionId, BookAddRequest request, BookAppContext db) =>
 {
     var collection = await db.BookCollections
@@ -753,11 +770,11 @@ app.MapPost("/books/{bookId}/note", async (ClaimsPrincipal claimsPrincipal, int 
     {
         BookId = bookId,
         Content = request.Content,
+        CreatedAt = DateTime.UtcNow
     };
 
-    //Need to associate note with the user
     var noteType = await db.NoteTypes
-        .FirstOrDefaultAsync(item => item.Id == request.TypeId);
+        .FirstOrDefaultAsync(item => item.Id == request.TypeId && item.UserId == parsedUserId);
 
     if (noteType is null)
     {
@@ -787,6 +804,15 @@ app.MapPost("/books/{bookId}/note", async (ClaimsPrincipal claimsPrincipal, int 
         note.RelatedQuote = quote;
     }
 
+    var noteCollections = await db.NoteCollections
+        .Where(item => request.CollectionIds.Contains(item.Id) && item.UserId == parsedUserId)
+        .ToListAsync();
+
+    if (noteCollections.Count > 0)
+    {
+        note.NoteCollections = noteCollections;
+    }
+
     db.Notes.Add(note);
     
     await db.SaveChangesAsync();
@@ -794,13 +820,19 @@ app.MapPost("/books/{bookId}/note", async (ClaimsPrincipal claimsPrincipal, int 
     return Results.Created($"/notes/{note.Id}", note);
 }).RequireAuthorization();
 
-app.MapPost("/users/note/type", async (NoteTypeCreateRequest request, BookAppContext db) =>
+app.MapPost("/users/note/type", async (ClaimsPrincipal claimsPrincipal, NoteTypeCreateRequest request, BookAppContext db) =>
 {
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+    var parsedUserId = Guid.Parse(userId);
+    
     var noteType = new NoteType
     {
         Name = request.Name,
         Color = request.Color,
-        Icon = request.Icon
+        Icon = request.Icon,
+        UserId = parsedUserId
     };
     
     db.NoteTypes.Add(noteType);
@@ -808,6 +840,22 @@ app.MapPost("/users/note/type", async (NoteTypeCreateRequest request, BookAppCon
     await db.SaveChangesAsync();
 
     return Results.Ok();
+    
+}).RequireAuthorization();
+
+app.MapGet("/users/note/type", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+    var parsedUserId = Guid.Parse(userId);
+
+    var noteTypes = await db.NoteTypes
+        .Where(item => item.UserId == parsedUserId)
+        .Select(item => new NoteTypeDto(item.Id, item.Name, item.Color, item.Icon))
+        .ToListAsync();
+
+    return Results.Ok(noteTypes);
     
 }).RequireAuthorization();
 
@@ -911,7 +959,13 @@ public record BookAddRequest(
 );
 public record QuoteCreateRequest(string Content, int Page);
 public record QuoteUpdateRequest(string Content, int Page);
-public record NoteCreateRequest(string Content, int TypeId, int? QuoteId, int[]? CollectionIds, int[]? RepetitionGroupIds);
+public record NoteCreateRequest(
+    string Content,
+    int TypeId,
+    int? QuoteId,
+    int[]? CollectionIds,
+    int[]? RepetitionGroupIds
+);
 public record NoteTypeCreateRequest(string Color, string Name, string Icon);
 public record SpacedRepetitionGroupCreateRequest(string Name, DateTime RemindAt);
 public record SpacedRepetitionItemAddRequest(int? QuoteId, int? NoteId);
@@ -942,6 +996,8 @@ public record BookDto(
 );
 
 public record NoteBookDto(int Id, string Name);
+
+public record NoteTypeDto(int Id, string Name, string BgColor, string Icon);
 
 public record NoteDto(int Id, string Content, string TypeName, string Color, string Icon);
 public record CategoryDto(int Id, string Name);

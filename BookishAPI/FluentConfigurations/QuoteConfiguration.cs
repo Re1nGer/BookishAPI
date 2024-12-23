@@ -9,5 +9,8 @@ public class QuoteConfiguration : IEntityTypeConfiguration<Quote>
     {
         builder.HasMany(item => item.RelatedNotes)
             .WithOne(item => item.RelatedQuote);
+
+        builder.HasMany(item => item.QuoteCollections)
+            .WithMany(item => item.Quotes);
     }
 }

@@ -8,12 +8,10 @@ public class SpacedRepetitionGroupConfiguration : IEntityTypeConfiguration<Space
     public void Configure(EntityTypeBuilder<SpacedRepetitionGroup> builder)
     {
         builder.HasMany(item => item.Quotes)
-            .WithMany(item => item.SpacedRepetitionGroups)
-            .UsingEntity(j => j.ToTable("QuotesSpacedRepetition"));
-        
+            .WithMany(item => item.SpacedRepetitionGroups);
+
         builder.HasMany(item => item.Notes)
-            .WithMany(item => item.SpacedRepetitionGroups)
-            .UsingEntity(j => j.ToTable("NotesSpacedRepetition"));
-        
+            .WithMany(item => item.SpacedRepetitionGroups);
+
     }
 }

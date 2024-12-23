@@ -44,5 +44,20 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .WithOne(u => u.User)
             .HasForeignKey<UserSettings>("UserId")
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(u => u.NoteTypes)
+            .WithOne(u => u.User)
+            .HasForeignKey(item => item.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+        
+        builder.HasMany(u => u.NoteCollections)
+            .WithOne(u => u.User)
+            .HasForeignKey(item => item.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+        
+        builder.HasMany(u => u.QuoteCollections)
+            .WithOne(u => u.User)
+            .HasForeignKey(item => item.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
