@@ -314,8 +314,10 @@ app.MapGet("/users/book/{id}", async (ClaimsPrincipal claimsPrincipal, int id, B
                 Content: item.Content,
                 TypeName: item.Type.Name,
                 Color: item.Type.Color,
-                Icon: item.Type.Icon)
-            ).ToList(),
+                Icon: item.Type.Icon,
+                CreatedAt: item.CreatedAt)
+            ).OrderBy(item => item.CreatedAt)
+            .ToList(),
         Collections: book.BookCollections.Select(item =>
             new CollectionDto(item.Id, item.Name)).ToList(),
         Quotes: book.Quotes.Select(item =>
@@ -762,7 +764,7 @@ app.MapPost("/books/{bookId}/note", async (ClaimsPrincipal claimsPrincipal, int 
     var parsedUserId = Guid.Parse(userId);
     
     var book = await db.Books
-        .FirstOrDefaultAsync(item => item.Id == bookId);
+        .FirstOrDefaultAsync(item => item.Id == bookId && item.UserId == parsedUserId);
     
     if (book == null) return Results.NotFound();
 
@@ -999,7 +1001,7 @@ public record NoteBookDto(int Id, string Name);
 
 public record NoteTypeDto(int Id, string Name, string BgColor, string Icon);
 
-public record NoteDto(int Id, string Content, string TypeName, string Color, string Icon);
+public record NoteDto(int Id, string Content, string TypeName, string Color, string Icon, DateTime CreatedAt);
 public record CategoryDto(int Id, string Name);
 
 public record AuthorDto(int Id, string Name);
