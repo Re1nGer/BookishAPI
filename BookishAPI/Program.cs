@@ -316,7 +316,7 @@ app.MapGet("/users/book/{id}", async (ClaimsPrincipal claimsPrincipal, int id, B
                 Color: item.Type.Color,
                 Icon: item.Type.Icon,
                 CreatedAt: item.CreatedAt)
-            ).OrderBy(item => item.CreatedAt)
+            ).OrderByDescending(item => item.CreatedAt)
             .ToList(),
         Collections: book.BookCollections.Select(item =>
             new CollectionDto(item.Id, item.Name)).ToList(),
@@ -649,7 +649,7 @@ app.MapGet("/users/collections", async (ClaimsPrincipal claimsPrincipal, BookApp
     var collections = await db.BookCollections
         .Where(item => item.UserId == parsedUserId)
         .OrderByDescending(item => item.Id)
-        .Select(item => new CollectionDto(item.Id, item.Name))
+        .Select(item => new CollectionWithCountDto(item.Id, item.Name, item.Books.Count))
         .ToListAsync();
 
     return Results.Ok(collections);
@@ -1007,6 +1007,8 @@ public record CategoryDto(int Id, string Name);
 public record AuthorDto(int Id, string Name);
 
 public record CollectionDto(int Id, string Name);
+
+public record CollectionWithCountDto(int Id, string Name, int BooksCount);
 
 //TODO: Fill in properties
 public record QuoteDto();
