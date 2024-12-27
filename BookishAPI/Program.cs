@@ -524,6 +524,37 @@ app.MapPost("/book", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, 
 }).RequireAuthorization();
 
 
+app.MapPut("/users/book", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, BookModifyRequest request) =>
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+    var parsedUserId = Guid.Parse(userId);
+    
+    var book = await db.Books
+        .FirstOrDefaultAsync(b => b.Id == request.Id && b.UserId == parsedUserId);
+
+    if (book == null)
+        return Results.NotFound("Book not found");
+
+    book.Title = request.Title;
+    book.Description = request.Description;
+    book.TotalPages = request.PageCount;
+    book.Author = request.Author;
+
+    book.Genres = await db.Genres
+        .Where(g => request.CategoryIds.Contains(g.Id))
+        .ToListAsync();
+
+    book.BookCollections = await db.BookCollections
+        .Where(c => request.CollectionIds.Contains(c.Id) 
+                    && c.UserId == parsedUserId)
+        .ToListAsync();
+
+    await db.SaveChangesAsync();
+
+    return Results.Ok();
+});
 
 app.MapPut("/users/settings", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, UserSettingsUpdateRequest request) =>
 {
@@ -976,6 +1007,8 @@ public record CodeVerify(string Code, string Email);
 public record ResetPasswordRequest(string NewPassword, string NewPasswordRepeated, string Email, string VerificationCode);
 
 public record BookCurrentPageUpdateRequest(int Page);
+
+public record BookModifyRequest(int Id, string Title, string Author, string Description, int PageCount, int [] CollectionIds, int[] CategoryIds);
 
 //public record BookFilters(int[] Statuses, string[] Authors, string[] Categories, int[] Collections);
 
