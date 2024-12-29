@@ -532,6 +532,7 @@ app.MapPut("/users/book", async (ClaimsPrincipal claimsPrincipal, BookAppContext
     var parsedUserId = Guid.Parse(userId);
     
     var book = await db.Books
+        .Include(item => item.Genres)
         .FirstOrDefaultAsync(b => b.Id == request.Id && b.UserId == parsedUserId);
 
     if (book == null)
@@ -541,11 +542,16 @@ app.MapPut("/users/book", async (ClaimsPrincipal claimsPrincipal, BookAppContext
     book.Description = request.Description;
     book.TotalPages = request.PageCount;
     book.Author = request.Author;
+    book.Status = (BookStatus)request.Status;
 
-    book.Genres = await db.Genres
-        .Where(g => request.CategoryIds.Contains(g.Id))
-        .ToListAsync();
-
+    var genres = request.Categories.Select(item => new Genre
+    {
+        Name = item
+    }).ToList();
+    
+    book.Genres.Clear();
+    book.Genres = genres;
+    
     book.BookCollections = await db.BookCollections
         .Where(c => request.CollectionIds.Contains(c.Id) 
                     && c.UserId == parsedUserId)
@@ -1008,7 +1014,7 @@ public record ResetPasswordRequest(string NewPassword, string NewPasswordRepeate
 
 public record BookCurrentPageUpdateRequest(int Page);
 
-public record BookModifyRequest(int Id, string Title, string Author, string Description, int PageCount, int [] CollectionIds, int[] CategoryIds);
+public record BookModifyRequest(int Id, string Title, string Author, int Status, string Description, int PageCount, int [] CollectionIds, string[] Categories);
 
 //public record BookFilters(int[] Statuses, string[] Authors, string[] Categories, int[] Collections);
 
