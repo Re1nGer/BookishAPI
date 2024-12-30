@@ -410,7 +410,7 @@ app.MapGet("/users/books", async (ClaimsPrincipal claimsPrincipal,
     }
 
     books = books
-        .OrderBy(item => item.StartedAt);
+        .OrderByDescending(item => item.StartedAt);
 
     return Results.Ok(await books.ToListAsync());
 
@@ -532,6 +532,7 @@ app.MapPut("/users/book", async (ClaimsPrincipal claimsPrincipal, BookAppContext
     var parsedUserId = Guid.Parse(userId);
     
     var book = await db.Books
+        .Include(item => item.BookCollections)
         .Include(item => item.Genres)
         .FirstOrDefaultAsync(b => b.Id == request.Id && b.UserId == parsedUserId);
 
@@ -552,10 +553,13 @@ app.MapPut("/users/book", async (ClaimsPrincipal claimsPrincipal, BookAppContext
     book.Genres.Clear();
     book.Genres = genres;
     
-    book.BookCollections = await db.BookCollections
-        .Where(c => request.CollectionIds.Contains(c.Id) 
-                    && c.UserId == parsedUserId)
-        .ToListAsync();
+    var bookCollections = await db.BookCollections
+                                  .Where(c => request.CollectionIds.Contains(c.Id) 
+                                              && c.UserId == parsedUserId)
+                                  .ToListAsync();
+    
+    book.BookCollections.Clear();
+    book.BookCollections = bookCollections;
 
     await db.SaveChangesAsync();
 
