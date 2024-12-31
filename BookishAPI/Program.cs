@@ -762,6 +762,27 @@ app.MapGet("/users/note-collections", async (ClaimsPrincipal claimsPrincipal, Bo
     
 }).RequireAuthorization();
 
+app.MapPost("/users/note-collections", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, NoteCollectionCreateRequest request) =>
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+    var parsedUserId = Guid.Parse(userId);
+
+    var noteCollection = new NoteCollection
+    {
+        Name = request.Name,
+        UserId = parsedUserId
+    };
+
+    await db.NoteCollections.AddAsync(noteCollection);
+
+    await db.SaveChangesAsync();
+
+    return Results.Ok();
+    
+}).RequireAuthorization();
+
 app.MapPost("/collections/{collectionId}/books", async (int collectionId, BookAddRequest request, BookAppContext db) =>
 {
     var collection = await db.BookCollections
@@ -1038,6 +1059,7 @@ public record UserRegistrationRequest(string Username, string Email, string Pass
 public record UserSettingsUpdateRequest(bool NotificationsEnabled, TimeFormat TimeFormat);
 public record GoalCreateRequest(GoalType Type, GoalPeriod Period, int Target);
 public record CollectionCreateRequest(string Name);
+public record NoteCollectionCreateRequest(string Name);
 public record BookAddRequest(
         string Title,
         string? Description,
