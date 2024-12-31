@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using BookishAPI;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using JsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
@@ -714,6 +715,36 @@ app.MapGet("/users/books/notes", async (ClaimsPrincipal claimsPrincipal, BookApp
     
 }).RequireAuthorization();
 
+app.MapGet("/users/books/{id}/notes", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, int id) =>
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+    var parsedUserId = Guid.Parse(userId);
+
+    var book = await db.Books
+        .Include(item => item.Notes)
+        .ThenInclude(item => item.Type)
+        .AsNoTracking()
+        .FirstOrDefaultAsync(item => item.Id == id && item.UserId == parsedUserId);
+
+    if (book is null)
+    {
+        return Results.NotFound();
+    }
+
+    var notes = book?.Notes
+        .Select(item => new BookNote(item.Id, book.Title,
+            item.Content,
+            item.Type.Name,
+            item.Type.Color,
+            item.Type.Icon, item.CreatedAt))
+        .ToList();
+
+    return Results.Ok(notes ?? default);
+    
+}).RequireAuthorization();
+
 app.MapGet("/users/note-collections", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -1070,6 +1101,7 @@ public record CollectionDto(int Id, string Name);
 
 public record CollectionWithCountDto(int Id, string Name, int BooksCount);
 public record NoteWithCountDto(int Id, string ImageUrl, string BookName, string Author, int NotesCount);
+public record BookNote(int Id, string BookName, string Text, string NoteTypeName, string NoteTypeColor, string NoteTypeIcon, DateTime Date);
 
 //TODO: Fill in properties
 public record QuoteDto();
