@@ -697,6 +697,23 @@ app.MapGet("/users/collections", async (ClaimsPrincipal claimsPrincipal, BookApp
     
 }).RequireAuthorization();
 
+app.MapGet("/users/books/notes", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+    var parsedUserId = Guid.Parse(userId);
+
+    var collections = await db.Books
+        .Where(item => item.UserId == parsedUserId)
+        .OrderByDescending(item => item.Id)
+        .Select(item => new NoteWithCountDto(item.Id, item.ImageUrl, item.Title, item.Author, item.Notes.Count))
+        .ToListAsync();
+
+    return Results.Ok(collections);
+    
+}).RequireAuthorization();
+
 app.MapGet("/users/note-collections", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -1052,6 +1069,7 @@ public record AuthorDto(int Id, string Name);
 public record CollectionDto(int Id, string Name);
 
 public record CollectionWithCountDto(int Id, string Name, int BooksCount);
+public record NoteWithCountDto(int Id, string ImageUrl, string BookName, string Author, int NotesCount);
 
 //TODO: Fill in properties
 public record QuoteDto();
