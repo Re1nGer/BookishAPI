@@ -932,6 +932,78 @@ app.MapPost("/books/{bookId}/note", async (ClaimsPrincipal claimsPrincipal, int 
     return Results.Created($"/notes/{note.Id}", note);
 }).RequireAuthorization();
 
+app.MapPut("/books/{bookId}/note", async (ClaimsPrincipal claimsPrincipal, int bookId, NoteModifyRequest request, BookAppContext db) =>
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+    var parsedUserId = Guid.Parse(userId);
+    
+    var book = await db.Books
+        .FirstOrDefaultAsync(item => item.Id == bookId && item.UserId == parsedUserId);
+    
+    if (book == null) return Results.NotFound();
+    
+    var noteType = await db.NoteTypes
+        .FirstOrDefaultAsync(item => item.Id == request.TypeId && item.UserId == parsedUserId);
+
+    if (noteType is null)
+    {
+        return Results.NotFound("Note Type is not found");
+    }
+
+    var note = await db.Notes
+        .Include(item => item.SpacedRepetitionGroups)
+        .Include(item => item.RelatedQuote)
+        .Include(item => item.NoteCollections)
+        .FirstOrDefaultAsync(item => item.Id == request.Id && item.BookId == bookId);
+
+    if (note is null)
+    {
+        return Results.NotFound("Note not found");
+    }
+
+    note.Content = request.Content;
+    note.Type = noteType;
+    
+    var repetitionGroups = await db.SpacedRepetitionGroups
+        .Where(item => request.RepetitionGroupIds.Contains(item.Id) && item.UserId == parsedUserId)
+        .ToListAsync();
+
+    if (repetitionGroups.Count > 0)
+    {
+        note.SpacedRepetitionGroups.Clear();
+        note.SpacedRepetitionGroups = repetitionGroups;
+    }
+
+    var quote = await db.Quotes
+        .Include(item => item.Book)
+        .FirstOrDefaultAsync(item =>
+            item.Id == request.QuoteId
+            && item.BookId == bookId
+            && item.Book.UserId == parsedUserId);
+
+    if (quote is not null)
+    {
+        note.RelatedQuote = quote;
+    }
+
+    var noteCollections = await db.NoteCollections
+        .Where(item => request.CollectionIds.Contains(item.Id) && item.UserId == parsedUserId)
+        .ToListAsync();
+
+    if (noteCollections.Count > 0)
+    {
+        note.NoteCollections.Clear();
+        note.NoteCollections = noteCollections;
+    }
+
+    await db.SaveChangesAsync();
+
+    return Results.Ok();
+    
+}).RequireAuthorization();
+
 app.MapPost("/users/note/type", async (ClaimsPrincipal claimsPrincipal, NoteTypeCreateRequest request, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -968,6 +1040,31 @@ app.MapGet("/users/note/type", async (ClaimsPrincipal claimsPrincipal, BookAppCo
         .ToListAsync();
 
     return Results.Ok(noteTypes);
+    
+}).RequireAuthorization();
+
+app.MapGet("/books/{bookId}/note/{noteId}", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, int bookId, int noteId) =>
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+    var parsedUserId = Guid.Parse(userId);
+
+    var hasNote = await db.Notes
+        .Include(item => item.Book)
+        .AnyAsync(item => item.Id == noteId && item.Book.Id == bookId && item.Book.UserId == parsedUserId);
+    
+    if (!hasNote)
+    {
+        return Results.NotFound();
+    }
+
+    var note = await db.Notes
+        .Include(item => item.Type)
+        .FirstOrDefaultAsync(item => item.Id == noteId
+                                     && item.BookId == bookId);
+
+    return Results.Ok(note);
     
 }).RequireAuthorization();
 
@@ -1073,6 +1170,14 @@ public record BookAddRequest(
 public record QuoteCreateRequest(string Content, int Page);
 public record QuoteUpdateRequest(string Content, int Page);
 public record NoteCreateRequest(
+    string Content,
+    int TypeId,
+    int? QuoteId,
+    int[]? CollectionIds,
+    int[]? RepetitionGroupIds
+);
+public record NoteModifyRequest(
+    int Id,
     string Content,
     int TypeId,
     int? QuoteId,
