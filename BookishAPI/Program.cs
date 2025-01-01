@@ -1068,6 +1068,35 @@ app.MapGet("/books/{bookId}/note/{noteId}", async (ClaimsPrincipal claimsPrincip
     
 }).RequireAuthorization();
 
+//perhaps it has to be a soft delete
+app.MapDelete("/books/{bookId}/note/{noteId}", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, int bookId, int noteId) =>
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+    var parsedUserId = Guid.Parse(userId);
+
+    var hasNote = await db.Notes
+        .Include(item => item.Book)
+        .AnyAsync(item => item.Id == noteId && item.Book.Id == bookId && item.Book.UserId == parsedUserId);
+    
+    if (!hasNote)
+    {
+        return Results.NotFound();
+    }
+
+    var note = await db.Notes
+        .FirstOrDefaultAsync(item => item.Id == noteId
+                                     && item.BookId == bookId);
+
+    db.Notes.Remove(note);
+
+    await db.SaveChangesAsync();
+
+    return Results.Ok(note);
+    
+}).RequireAuthorization();
+
 app.MapPost("/books/{bookId}/quote", async (int bookId, NoteCreateRequest request, BookAppContext db) =>
 {
     var book = await db.Books
