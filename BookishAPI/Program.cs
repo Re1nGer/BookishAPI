@@ -322,7 +322,8 @@ app.MapGet("/users/book/{id}", async (ClaimsPrincipal claimsPrincipal, int id, B
         Collections: book.BookCollections.Select(item =>
             new CollectionDto(item.Id, item.Name)).ToList(),
         Quotes: book.Quotes.Select(item =>
-            new QuoteDto()).ToList());
+            new QuoteDto(item.Id, book.Title, item.Content))
+            .ToList());
 
     return Results.Ok(bookDto);
 
@@ -745,6 +746,31 @@ app.MapGet("/users/books/{id}/notes", async (ClaimsPrincipal claimsPrincipal, Bo
     
 }).RequireAuthorization();
 
+app.MapGet("/users/notes", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+    var parsedUserId = Guid.Parse(userId);
+
+    var notes = db.Books
+        .AsNoTracking()
+        .AsSplitQuery()
+        .Include(item => item.Notes)
+        .ThenInclude(item => item.Type)
+        .Where(item => item.UserId == parsedUserId)
+        .SelectMany(book => book.Notes
+            .Select(item => new BookNote(item.Id, book.Title,
+                item.Content,
+                item.Type.Name,
+                item.Type.Color,
+                item.Type.Icon, item.CreatedAt))
+            .ToList());
+
+    return Results.Ok(notes);
+    
+}).RequireAuthorization();
+
 app.MapGet("/users/note-collections", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -823,23 +849,70 @@ app.MapDelete("/collections/{collectionId}/books/{bookId}", async (int collectio
 
 
 // Quote endpoints
-app.MapPost("/books/{bookId}/quotes", async (int bookId, QuoteCreateRequest request, BookAppContext db) =>
+app.MapPost("/books/{bookId}/quote", async (ClaimsPrincipal claimsPrincipal, int bookId, QuoteCreateRequest request, BookAppContext db) =>
 {
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+    var parsedUserId = Guid.Parse(userId);
+    
     var book = await db.Books
-        .FirstOrDefaultAsync(item => item.Id == bookId);
+        .FirstOrDefaultAsync(item => item.Id == bookId && item.UserId == parsedUserId);
     
     if (book == null) return Results.NotFound();
-
+    
     var quote = new Quote
     {
         BookId = bookId,
         Content = request.Content,
     };
 
+    if (request.NoteIds is not null && request.NoteIds.Length > 0)
+    {
+        var relatedNotes = await db.Notes
+            .Where(item => item.BookId == book.Id && request.NoteIds.Contains(item.Id))
+            .ToListAsync();
+        
+        quote.RelatedNotes = relatedNotes;
+    }
+
+    if (request.CollectionIds is not null && request.CollectionIds.Length > 0)
+    {
+        var quoteCollections = await db.QuoteCollections
+            .Where(item => item.UserId == parsedUserId && request.CollectionIds.Contains(item.Id))
+            .ToListAsync();
+        
+        quote.QuoteCollections = quoteCollections;
+    }
+
     db.Quotes.Add(quote);
+    
     await db.SaveChangesAsync();
 
     return Results.Created($"/quotes/{quote.Id}", quote);
+    
+}).RequireAuthorization();
+
+app.MapGet("/users/quotes", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+    var parsedUserId = Guid.Parse(userId);
+    
+    var quotes = db.Books
+        .AsNoTracking()
+        .AsSplitQuery()
+        .Include(item => item.Quotes)
+        .Where(item => item.UserId == parsedUserId)
+        .SelectMany(book => book.Quotes
+            .Select(item => new QuoteDto(
+                item.Id,
+                book.Title,
+                item.Content))
+            .ToList());
+
+    return Results.Ok(quotes);
     
 }).RequireAuthorization();
 
@@ -1059,12 +1132,25 @@ app.MapGet("/books/{bookId}/note/{noteId}", async (ClaimsPrincipal claimsPrincip
         return Results.NotFound();
     }
 
-    var note = await db.Notes
-        .Include(item => item.Type)
-        .FirstOrDefaultAsync(item => item.Id == noteId
-                                     && item.BookId == bookId);
+    var book = await db.Books
+        .FirstOrDefaultAsync(item => item.Id == bookId);
 
-    return Results.Ok(note);
+    var note = await db.Notes
+        .Include(item => item.RelatedQuote)
+        .Include(item => item.Type)
+        .Where(item => item.BookId == bookId && item.Id == noteId)
+        .FirstOrDefaultAsync();
+
+    var result = new SingleNoteDto(
+        note.Id,
+        note.Content,
+        book.Title,
+        note.Type.Id,
+        note.RelatedQuote != null
+            ? new QuoteDto(note.RelatedQuote.Id, book.Title, note.RelatedQuote.Content)
+            : null);
+
+    return Results.Ok(result);
     
 }).RequireAuthorization();
 
@@ -1095,26 +1181,6 @@ app.MapDelete("/books/{bookId}/note/{noteId}", async (ClaimsPrincipal claimsPrin
 
     return Results.Ok(note);
     
-}).RequireAuthorization();
-
-app.MapPost("/books/{bookId}/quote", async (int bookId, NoteCreateRequest request, BookAppContext db) =>
-{
-    var book = await db.Books
-        .FirstOrDefaultAsync(item => item.Id == bookId);
-    
-    if (book == null) return Results.NotFound();
-
-    var quote = new Quote
-    {
-        BookId = bookId,
-        Content = request.Content,
-    };
-    
-    book.Quotes.Add(quote);
-    
-    await db.SaveChangesAsync();
-
-    return Results.Created($"/quotes/{quote.Id}", quote);
 }).RequireAuthorization();
 
 // Spaced Repetition Group endpoints
@@ -1196,7 +1262,7 @@ public record BookAddRequest(
         string? ImageUrl,
         int Status
 );
-public record QuoteCreateRequest(string Content, int Page);
+public record QuoteCreateRequest(string Content, int[]? CollectionIds, int[]? RepetitionGroupIds, int[]? NoteIds);
 public record QuoteUpdateRequest(string Content, int Page);
 public record NoteCreateRequest(
     string Content,
@@ -1249,6 +1315,7 @@ public record NoteBookDto(int Id, string Name);
 public record NoteTypeDto(int Id, string Name, string BgColor, string Icon);
 
 public record NoteDto(int Id, string Content, string TypeName, string Color, string Icon, DateTime CreatedAt);
+public record SingleNoteDto(int Id, string Content, string BookName, int TypeId, QuoteDto? Quote);
 public record CategoryDto(int Id, string Name);
 
 public record AuthorDto(int Id, string Name);
@@ -1260,7 +1327,7 @@ public record NoteWithCountDto(int Id, string ImageUrl, string BookName, string 
 public record BookNote(int Id, string BookName, string Text, string NoteTypeName, string NoteTypeColor, string NoteTypeIcon, DateTime Date);
 
 //TODO: Fill in properties
-public record QuoteDto();
+public record QuoteDto(int Id, string BookName, string Text);
 
 // Error Objects
 
