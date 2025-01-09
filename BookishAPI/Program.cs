@@ -473,11 +473,6 @@ app.MapPost("/book", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, 
     var bookExists = await db.Books.AnyAsync(item => item.Title == request.Title)
                      && await db.Books.AnyAsync(item => item.Author == string.Join(",", request.Authors));
 
-    if (bookExists)
-    {
-        return Results.BadRequest("The book already exists");
-    }
-
     var genres = request.Categories.Select(item => new Genre
     {
         Name = item
