@@ -699,6 +699,55 @@ app.MapGet("/users/collections", async (ClaimsPrincipal claimsPrincipal, BookApp
     
 }).RequireAuthorization();
 
+app.MapGet("/users/books/{id}/quotes", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, int id) =>
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+    var parsedUserId = Guid.Parse(userId);
+
+    //Query Can be optimized without loading in RelatedNotes just to know the count
+    var book = await db.Books
+        .Include(item => item.Quotes)
+        .ThenInclude(item => item.RelatedNotes)
+        .AsNoTracking()
+        .AsSplitQuery()
+        .FirstOrDefaultAsync(item => item.Id == id && item.UserId == parsedUserId);
+
+    if (book is null)
+    {
+        return Results.NotFound();
+    }
+
+    var quotes = book.Quotes
+        .Select(item => new QuoteDtoWithCount(
+            item.Id,
+            book.Title,
+            item.Content,
+            item.RelatedNotes.Count))
+        .ToList();
+
+    return Results.Ok(quotes);
+    
+}).RequireAuthorization();
+
+app.MapGet("/users/books/quotes", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+    var parsedUserId = Guid.Parse(userId);
+
+    var bookQuotes = await db.Books
+        .Where(item => item.UserId == parsedUserId)
+        .OrderByDescending(item => item.Id)
+        .Select(item => new BookQuoteWithCountDto(item.Id, item.ImageUrl, item.Title, item.Author, item.Quotes.Count))
+        .ToListAsync();
+
+    return Results.Ok(bookQuotes);
+    
+}).RequireAuthorization();
+
 app.MapGet("/users/books/notes", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -867,10 +916,12 @@ app.MapPost("/books/{bookId}/quote", async (ClaimsPrincipal claimsPrincipal, int
         Content = request.Content,
     };
 
+    //do we let users add quotes from other books ?
     if (request.NoteIds is not null && request.NoteIds.Length > 0)
     {
         var relatedNotes = await db.Notes
-            .Where(item => item.BookId == book.Id && request.NoteIds.Contains(item.Id))
+            .Include(item => item.Book)
+            .Where(item => request.NoteIds.Contains(item.Id))
             .ToListAsync();
         
         quote.RelatedNotes = relatedNotes;
@@ -1324,10 +1375,12 @@ public record CollectionDto(int Id, string Name);
 
 public record CollectionWithCountDto(int Id, string Name, int BooksCount);
 public record NoteWithCountDto(int Id, string ImageUrl, string BookName, string Author, int NotesCount);
+public record BookQuoteWithCountDto(int Id, string ImageUrl, string BookName, string Author, int QuotesCount);
 public record BookNote(int Id, string BookName, string Text, string NoteTypeName, string NoteTypeColor, string NoteTypeIcon, DateTime Date);
 
 //TODO: Fill in properties
 public record QuoteDto(int Id, string BookName, string Text);
+public record QuoteDtoWithCount(int Id, string BookName, string Text, int NoteCount);
 
 // Error Objects
 
