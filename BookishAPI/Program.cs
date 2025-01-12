@@ -825,8 +825,36 @@ app.MapGet("/users/note-collections", async (ClaimsPrincipal claimsPrincipal, Bo
     var collections = await db.NoteCollections
         .Where(item => item.UserId == parsedUserId)
         .OrderByDescending(item => item.Id)
-        .Select(item => new CollectionDto(item.Id, item.Name))
+        .Select(item => new BookCollectionWithCountDto(item.Id, item.Name, item.Notes.Count()))
         .ToListAsync();
+
+    return Results.Ok(collections);
+    
+}).RequireAuthorization();
+
+app.MapGet("/users/note-collections/{id}/notes", async (ClaimsPrincipal claimsPrincipal, int id, BookAppContext db) =>
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+    var parsedUserId = Guid.Parse(userId);
+
+    var collections = db.NoteCollections
+        .AsNoTracking()
+        .AsSplitQuery()
+        .Include(item => item.Notes)
+        .ThenInclude(item => item.Type)
+        .Include(item => item.Notes)
+        .ThenInclude(item => item.Book)
+        .Where(item => item.UserId == parsedUserId && item.Id == id)
+        .OrderByDescending(item => item.Id)
+        .SelectMany(book => book.Notes
+            .Select(item => new BookNote(item.Id, item.Book.Title,
+                item.Content,
+                item.Type.Name,
+                item.Type.Color,
+                item.Type.Icon, item.CreatedAt))
+            .ToList());
 
     return Results.Ok(collections);
     
@@ -1480,6 +1508,7 @@ public record AuthorDto(int Id, string Name);
 public record CollectionDto(int Id, string Name);
 
 public record CollectionWithCountDto(int Id, string Name, int BooksCount);
+public record BookCollectionWithCountDto(int Id, string Name, int NotesCount);
 public record NoteWithCountDto(int Id, string ImageUrl, string BookName, string Author, int NotesCount);
 public record BookQuoteWithCountDto(int Id, string ImageUrl, string BookName, string Author, int QuotesCount);
 public record BookNote(int Id, string BookName, string Text, string NoteTypeName, string NoteTypeColor, string NoteTypeIcon, DateTime Date);
