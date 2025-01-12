@@ -736,7 +736,8 @@ app.MapGet("/users/books/quotes", async (ClaimsPrincipal claimsPrincipal, BookAp
     var bookQuotes = await db.Books
         .Where(item => item.UserId == parsedUserId)
         .OrderByDescending(item => item.Id)
-        .Select(item => new BookQuoteWithCountDto(item.Id, item.ImageUrl, item.Title, item.Author, item.Quotes.Count))
+        .Select(item => new BookQuoteWithCountDto(item.Id,
+            item.ImageUrl, item.Title, item.Author, item.Quotes.Count))
         .ToListAsync();
 
     return Results.Ok(bookQuotes);
@@ -832,6 +833,23 @@ app.MapGet("/users/note-collections", async (ClaimsPrincipal claimsPrincipal, Bo
     
 }).RequireAuthorization();
 
+app.MapGet("/users/quote-collections", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+    var parsedUserId = Guid.Parse(userId);
+
+    var collections = await db.QuoteCollections
+        .Where(item => item.UserId == parsedUserId)
+        .OrderByDescending(item => item.Id)
+        .Select(item => new BookCollectionWithCountDto(item.Id, item.Name, item.Quotes.Count()))
+        .ToListAsync();
+
+    return Results.Ok(collections);
+    
+}).RequireAuthorization();
+
 app.MapGet("/users/note-collections/{id}/notes", async (ClaimsPrincipal claimsPrincipal, int id, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -860,6 +878,29 @@ app.MapGet("/users/note-collections/{id}/notes", async (ClaimsPrincipal claimsPr
     
 }).RequireAuthorization();
 
+app.MapGet("/users/quote-collections/{id}/quotes", async (ClaimsPrincipal claimsPrincipal, int id, BookAppContext db) =>
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+    var parsedUserId = Guid.Parse(userId);
+
+    var collections = db.QuoteCollections
+        .AsNoTracking()
+        .AsSplitQuery()
+        .Include(item => item.Quotes)
+        .ThenInclude(item => item.Book)
+        .Where(item => item.UserId == parsedUserId && item.Id == id)
+        .OrderByDescending(item => item.Id)
+        .SelectMany(book => book.Quotes
+            .Select(item => new QuoteDtoWithCount(item.Id, item.Book.Title,
+                item.Content, item.RelatedNotes.Count))
+            .ToList());
+
+    return Results.Ok(collections);
+    
+}).RequireAuthorization();
+
 app.MapPost("/users/note-collections", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, NoteCollectionCreateRequest request) =>
 {
     var userId = claimsPrincipal.Claims
@@ -874,6 +915,27 @@ app.MapPost("/users/note-collections", async (ClaimsPrincipal claimsPrincipal, B
     };
 
     await db.NoteCollections.AddAsync(noteCollection);
+
+    await db.SaveChangesAsync();
+
+    return Results.Ok();
+    
+}).RequireAuthorization();
+
+app.MapPost("/users/quote-collections", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, NoteCollectionCreateRequest request) =>
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+    var parsedUserId = Guid.Parse(userId);
+
+    var noteCollection = new QuoteCollection
+    {
+        Name = request.Name,
+        UserId = parsedUserId
+    };
+
+    await db.QuoteCollections.AddAsync(noteCollection);
 
     await db.SaveChangesAsync();
 
@@ -1255,6 +1317,10 @@ app.MapPut("/books/{bookId}/note", async (ClaimsPrincipal claimsPrincipal, int b
         note.NoteCollections.Clear();
         note.NoteCollections = noteCollections;
     }
+    else
+    {
+        note.NoteCollections.Clear();
+    }
 
     await db.SaveChangesAsync();
 
@@ -1323,6 +1389,7 @@ app.MapGet("/books/{bookId}/note/{noteId}", async (ClaimsPrincipal claimsPrincip
     var note = await db.Notes
         .Include(item => item.RelatedQuote)
         .Include(item => item.Type)
+        .Include(item => item.NoteCollections)
         .Where(item => item.BookId == bookId && item.Id == noteId)
         .FirstOrDefaultAsync();
 
@@ -1333,7 +1400,9 @@ app.MapGet("/books/{bookId}/note/{noteId}", async (ClaimsPrincipal claimsPrincip
         note.Type.Id,
         note.RelatedQuote != null
             ? new QuoteDto(note.RelatedQuote.Id, book.Title, note.RelatedQuote.Content)
-            : null);
+            : null,
+        note.NoteCollections
+            .Select(j => new CollectionDto(j.Id, j.Name)).ToList());
 
     return Results.Ok(result);
     
@@ -1500,7 +1569,13 @@ public record NoteBookDto(int Id, string Name);
 public record NoteTypeDto(int Id, string Name, string BgColor, string Icon);
 
 public record NoteDto(int Id, string Content, string TypeName, string Color, string Icon, DateTime CreatedAt);
-public record SingleNoteDto(int Id, string Content, string BookName, int TypeId, QuoteDto? Quote);
+public record SingleNoteDto(
+    int Id,
+    string Content,
+    string BookName,
+    int TypeId,
+    QuoteDto? Quote,
+    List<CollectionDto> Collections);
 public record CategoryDto(int Id, string Name);
 
 public record AuthorDto(int Id, string Name);
