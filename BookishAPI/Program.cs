@@ -717,6 +717,7 @@ app.MapGet("/users/books/{id}/quotes", async (ClaimsPrincipal claimsPrincipal, B
     var quotes = book.Quotes
         .Select(item => new QuoteDtoWithCount(
             item.Id,
+            book.Id,
             book.Title,
             item.Content,
             item.RelatedNotes.Count))
@@ -893,7 +894,7 @@ app.MapGet("/users/quote-collections/{id}/quotes", async (ClaimsPrincipal claims
         .Where(item => item.UserId == parsedUserId && item.Id == id)
         .OrderByDescending(item => item.Id)
         .SelectMany(book => book.Quotes
-            .Select(item => new QuoteDtoWithCount(item.Id, item.Book.Title,
+            .Select(item => new QuoteDtoWithCount(item.Id, item.Book.Id, item.Book.Title,
                 item.Content, item.RelatedNotes.Count))
             .ToList());
 
@@ -1068,7 +1069,7 @@ app.MapPut("/books/{bookId}/quote", async (ClaimsPrincipal claimsPrincipal, int 
     }
     else
     {
-        quote.RelatedNotes.Clear();
+        quote.RelatedNotes = new List<Note>();
     }
 
     if (request.CollectionIds is not null && request.CollectionIds.Length > 0)
@@ -1078,6 +1079,10 @@ app.MapPut("/books/{bookId}/quote", async (ClaimsPrincipal claimsPrincipal, int 
             .ToListAsync();
         
         quote.QuoteCollections = quoteCollections;
+    }
+    else
+    {
+        quote.QuoteCollections = new List<QuoteCollection>();
     }
 
     db.Quotes.Update(quote);
@@ -1140,6 +1145,7 @@ app.MapGet("/books/{bookId}/quote/{quoteId}", async (ClaimsPrincipal claimsPrinc
         .AsNoTracking()
         .Include(item => item.RelatedNotes)
         .ThenInclude(item => item.Type)
+        .Include(item => item.QuoteCollections)
         .FirstOrDefaultAsync(item => item.Id == quoteId && item.BookId == book.Id);
 
     var relatedNotes = quote?.RelatedNotes.Select(item =>
@@ -1152,7 +1158,12 @@ app.MapGet("/books/{bookId}/quote/{quoteId}", async (ClaimsPrincipal claimsPrinc
             item.CreatedAt))
         .ToList();
 
-    var result = new QuoteWithNotesDto(quote.Id, book.Title, quote.Content, relatedNotes);
+    var result = new QuoteWithNotesDto(quote.Id,
+        book.Title,
+        quote.Content,
+        quote.QuoteCollections.Select(item => new
+            CollectionDto(item.Id, item.Name)).ToList(),
+        relatedNotes);
 
     return Results.Ok(result);
     
@@ -1591,8 +1602,8 @@ public record BookNote(int Id, string BookName, string Text, string NoteTypeName
 //TODO: Fill in properties
 public record QuoteDto(int Id, string BookName, string Text);
 
-public record QuoteWithNotesDto(int Id, string BookName, string Text, List<NoteDto> Notes);
-public record QuoteDtoWithCount(int Id, string BookName, string Text, int NoteCount);
+public record QuoteWithNotesDto(int Id, string BookName, string Text, List<CollectionDto> Collections, List<NoteDto> Notes);
+public record QuoteDtoWithCount(int Id, int BookId, string BookName, string Text, int NoteCount);
 
 // Error Objects
 
