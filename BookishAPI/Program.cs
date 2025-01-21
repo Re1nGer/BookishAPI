@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using BookishAPI;
+using BookishAPI.Endpoints;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -93,6 +94,8 @@ var app = builder.Build();
 app.UseAuthentication();
 
 app.UseAuthorization();
+
+app.MapBooksEndpoints();
 
 using (var scope = app.Services.CreateScope())
 {
@@ -614,7 +617,7 @@ app.MapPut("/users/books/{id}/currentPage", async (
     return Results.Ok();
     
 }).RequireAuthorization();
-
+//not used
 app.MapPost("/users/{id}/verify-email", async (Guid id, string token, BookAppContext db) =>
 {
     //gotta grab userId from jwt token
@@ -631,6 +634,7 @@ app.MapPost("/users/{id}/verify-email", async (Guid id, string token, BookAppCon
 });
 
 // Goal endpoints
+//not used yet
 app.MapPost("/users/goals", async (ClaimsPrincipal claimsPrincipal, GoalCreateRequest request, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -653,6 +657,7 @@ app.MapPost("/users/goals", async (ClaimsPrincipal claimsPrincipal, GoalCreateRe
 });
 
 // Collection endpoints
+//marked
 app.MapPost("/users/collections", async (ClaimsPrincipal claimsPrincipal, CollectionCreateRequest request, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -677,6 +682,7 @@ app.MapPost("/users/collections", async (ClaimsPrincipal claimsPrincipal, Collec
     
 }).RequireAuthorization();
 
+//marked
 app.MapGet("/users/collections", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -694,6 +700,7 @@ app.MapGet("/users/collections", async (ClaimsPrincipal claimsPrincipal, BookApp
     
 }).RequireAuthorization();
 
+//marked
 app.MapGet("/users/books/{id}/quotes", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, int id) =>
 {
     var userId = claimsPrincipal.Claims
@@ -701,10 +708,8 @@ app.MapGet("/users/books/{id}/quotes", async (ClaimsPrincipal claimsPrincipal, B
 
     var parsedUserId = Guid.Parse(userId);
 
-    //Query Can be optimized without loading in RelatedNotes just to know the count
     var book = await db.Books
         .Include(item => item.Quotes)
-        .ThenInclude(item => item.RelatedNotes)
         .AsNoTracking()
         .AsSplitQuery()
         .FirstOrDefaultAsync(item => item.Id == id && item.UserId == parsedUserId);
@@ -727,6 +732,7 @@ app.MapGet("/users/books/{id}/quotes", async (ClaimsPrincipal claimsPrincipal, B
     
 }).RequireAuthorization();
 
+//marked
 app.MapGet("/users/books/quotes", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -745,6 +751,7 @@ app.MapGet("/users/books/quotes", async (ClaimsPrincipal claimsPrincipal, BookAp
     
 }).RequireAuthorization();
 
+//marked
 app.MapGet("/users/books/notes", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -762,6 +769,7 @@ app.MapGet("/users/books/notes", async (ClaimsPrincipal claimsPrincipal, BookApp
     
 }).RequireAuthorization();
 
+//marked
 app.MapGet("/users/books/{id}/notes", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, int id) =>
 {
     var userId = claimsPrincipal.Claims
@@ -792,6 +800,7 @@ app.MapGet("/users/books/{id}/notes", async (ClaimsPrincipal claimsPrincipal, Bo
     
 }).RequireAuthorization();
 
+//marked
 app.MapGet("/users/notes", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -817,6 +826,7 @@ app.MapGet("/users/notes", async (ClaimsPrincipal claimsPrincipal, BookAppContex
     
 }).RequireAuthorization();
 
+//marked
 app.MapGet("/users/note-collections", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -834,6 +844,7 @@ app.MapGet("/users/note-collections", async (ClaimsPrincipal claimsPrincipal, Bo
     
 }).RequireAuthorization();
 
+//marked
 app.MapGet("/users/quote-collections", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -851,6 +862,7 @@ app.MapGet("/users/quote-collections", async (ClaimsPrincipal claimsPrincipal, B
     
 }).RequireAuthorization();
 
+//marked
 app.MapGet("/users/note-collections/{id}/notes", async (ClaimsPrincipal claimsPrincipal, int id, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -879,6 +891,7 @@ app.MapGet("/users/note-collections/{id}/notes", async (ClaimsPrincipal claimsPr
     
 }).RequireAuthorization();
 
+//marked
 app.MapGet("/users/quote-collections/{id}/quotes", async (ClaimsPrincipal claimsPrincipal, int id, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -902,6 +915,7 @@ app.MapGet("/users/quote-collections/{id}/quotes", async (ClaimsPrincipal claims
     
 }).RequireAuthorization();
 
+//marked
 app.MapPost("/users/note-collections", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, NoteCollectionCreateRequest request) =>
 {
     var userId = claimsPrincipal.Claims
@@ -923,6 +937,7 @@ app.MapPost("/users/note-collections", async (ClaimsPrincipal claimsPrincipal, B
     
 }).RequireAuthorization();
 
+//marked
 app.MapPost("/users/quote-collections", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, NoteCollectionCreateRequest request) =>
 {
     var userId = claimsPrincipal.Claims
@@ -984,6 +999,8 @@ app.MapDelete("/collections/{collectionId}/books/{bookId}", async (int collectio
 
 
 // Quote endpoints
+//marked
+/*
 app.MapPost("/books/{bookId}/quote", async (ClaimsPrincipal claimsPrincipal, int bookId, QuoteCreateRequest request, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -1030,6 +1047,7 @@ app.MapPost("/books/{bookId}/quote", async (ClaimsPrincipal claimsPrincipal, int
     
 }).RequireAuthorization();
 
+//marked
 app.MapPut("/books/{bookId}/quote", async (ClaimsPrincipal claimsPrincipal, int bookId, QuoteModifyRequest request, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -1093,6 +1111,7 @@ app.MapPut("/books/{bookId}/quote", async (ClaimsPrincipal claimsPrincipal, int 
     
 }).RequireAuthorization();
 
+//marked
 app.MapDelete("/books/{bookId}/quote/{quoteId}", async (ClaimsPrincipal claimsPrincipal,
     int bookId,
     int quoteId,
@@ -1125,7 +1144,9 @@ app.MapDelete("/books/{bookId}/quote/{quoteId}", async (ClaimsPrincipal claimsPr
     return Results.Ok();
     
 }).RequireAuthorization();
+*/
 
+//marked
 app.MapGet("/books/{bookId}/quote/{quoteId}", async (ClaimsPrincipal claimsPrincipal,
     int bookId,
     int quoteId,
@@ -1169,6 +1190,7 @@ app.MapGet("/books/{bookId}/quote/{quoteId}", async (ClaimsPrincipal claimsPrinc
     
 }).RequireAuthorization();
 
+//marked
 app.MapGet("/users/quotes", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -1194,6 +1216,8 @@ app.MapGet("/users/quotes", async (ClaimsPrincipal claimsPrincipal, BookAppConte
 
 
 // Note endpoints
+//marked
+/*
 app.MapPost("/books/{bookId}/note", async (ClaimsPrincipal claimsPrincipal,
     int bookId,
     NoteCreateRequest request,
@@ -1263,6 +1287,7 @@ app.MapPost("/books/{bookId}/note", async (ClaimsPrincipal claimsPrincipal,
     return Results.Created($"/notes/{note.Id}", note);
 }).RequireAuthorization();
 
+//marked
 app.MapPut("/books/{bookId}/note", async (ClaimsPrincipal claimsPrincipal, int bookId, NoteModifyRequest request, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -1338,7 +1363,9 @@ app.MapPut("/books/{bookId}/note", async (ClaimsPrincipal claimsPrincipal, int b
     return Results.Ok();
     
 }).RequireAuthorization();
+*/
 
+//marked
 app.MapPost("/users/note/type", async (ClaimsPrincipal claimsPrincipal, NoteTypeCreateRequest request, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -1362,6 +1389,7 @@ app.MapPost("/users/note/type", async (ClaimsPrincipal claimsPrincipal, NoteType
     
 }).RequireAuthorization();
 
+//marked
 app.MapGet("/users/note/type", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -1378,6 +1406,8 @@ app.MapGet("/users/note/type", async (ClaimsPrincipal claimsPrincipal, BookAppCo
     
 }).RequireAuthorization();
 
+//marked
+/*
 app.MapGet("/books/{bookId}/note/{noteId}", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, int bookId, int noteId) =>
 {
     var userId = claimsPrincipal.Claims
@@ -1420,6 +1450,7 @@ app.MapGet("/books/{bookId}/note/{noteId}", async (ClaimsPrincipal claimsPrincip
 }).RequireAuthorization();
 
 //perhaps it has to be a soft delete
+//marked
 app.MapDelete("/books/{bookId}/note/{noteId}", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, int bookId, int noteId) =>
 {
     var userId = claimsPrincipal.Claims
@@ -1447,6 +1478,7 @@ app.MapDelete("/books/{bookId}/note/{noteId}", async (ClaimsPrincipal claimsPrin
     return Results.Ok(note);
     
 }).RequireAuthorization();
+*/
 
 // Spaced Repetition Group endpoints
 app.MapPost("/users/{userId}/spaced-repetition-groups",
@@ -1475,7 +1507,7 @@ app.MapPost("/users/{userId}/spaced-repetition-groups",
     return Results.Created($"/spaced-repetition-groups/{group.Id}", group);
 }).RequireAuthorization();
 
-app.MapPost("/spaced-repetition-groups/{groupId}/quote",
+app.MapPost("/users/spaced-repetition-groups/{groupId}/quote",
     async (int groupId, SpacedRepetitionItemAddRequest request, BookAppContext db) =>
 {
     var group = await db.SpacedRepetitionGroups
