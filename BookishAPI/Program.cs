@@ -277,6 +277,7 @@ app.MapGet("/book/{id}", async (string id, GoogleBooksClient client) =>
     return Results.Ok(await client.GetBookByVolumeId(id));
 });
 
+//marked
 app.MapGet("/users/book/{id}", async (ClaimsPrincipal claimsPrincipal, int id, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -332,6 +333,7 @@ app.MapGet("/users/book/{id}", async (ClaimsPrincipal claimsPrincipal, int id, B
 
 }).RequireAuthorization();
 
+//marked
 app.MapPut("/users/book/{id}/status", async (ClaimsPrincipal claimsPrincipal, int id, int statusId, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -372,6 +374,7 @@ app.MapPut("/users/book/{id}/status", async (ClaimsPrincipal claimsPrincipal, in
 
 }).RequireAuthorization();
 
+//marked
 app.MapGet("/users/books", async (ClaimsPrincipal claimsPrincipal,
     int[]? statuses,
     string[]? authors,
@@ -422,6 +425,7 @@ app.MapGet("/users/books", async (ClaimsPrincipal claimsPrincipal,
 }).RequireAuthorization();
 
 //endpoint for getting books used as a part of notes filter
+//marked
 app.MapGet("/users/notes/books", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -440,6 +444,7 @@ app.MapGet("/users/notes/books", async (ClaimsPrincipal claimsPrincipal, BookApp
 
 }).RequireAuthorization();
 
+//marked
 app.MapGet("/users/books/authors", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -523,7 +528,7 @@ app.MapPost("/book", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, 
     
 }).RequireAuthorization();
 
-
+//marked
 app.MapPut("/users/book", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, BookModifyRequest request) =>
 {
     var userId = claimsPrincipal.Claims
@@ -566,6 +571,7 @@ app.MapPut("/users/book", async (ClaimsPrincipal claimsPrincipal, BookAppContext
     return Results.Ok();
 });
 
+//not used yet
 app.MapPut("/users/settings", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, UserSettingsUpdateRequest request) =>
 {
     var userId = claimsPrincipal.Claims
@@ -586,6 +592,7 @@ app.MapPut("/users/settings", async (ClaimsPrincipal claimsPrincipal, BookAppCon
     return Results.NoContent();
 });
 
+//marked
 app.MapPut("/users/books/{id}/currentPage", async (
     ClaimsPrincipal claimsPrincipal,
     int id,

@@ -40,6 +40,10 @@ public static class Users
             .WithName("Get user's notes")
             .WithSummary("Get all notes of user");
         
+        group.MapGet("notes/books", GetUserNotesBooks)
+            .WithName("Get all notes' books")
+            .WithSummary("Get all notes' books");
+        
         group.MapGet("quotes", GetUserQuotes)
             .WithName("Get user's quotes")
             .WithSummary("Get all quotes of user");
@@ -52,6 +56,14 @@ public static class Users
             .WithName("Create user's note types")
             .WithSummary("Create note types of user");
         
+        group.MapGet("books", GetUserBooks)
+            .WithName("Get user's books")
+            .WithSummary("Get all books");
+        
+        group.MapGet("book/{id}", GetUserBookById)
+            .WithName("Get user's book by id")
+            .WithSummary("Get user's book by id");
+        
         group.MapGet("books/{id}/notes", GetBookNotes)
             .WithName("Get book's notes")
             .WithSummary("Get all notes of book");
@@ -60,6 +72,18 @@ public static class Users
             .WithName("Get book's quotes")
             .WithSummary("Get all quotes of book");
         
+        group.MapPut("books/{id}/currentPage", UpdateBookCurrentReadPage)
+            .WithName("Update book's current read page")
+            .WithSummary("Update book's current read page");
+        
+        group.MapPut("book/{id}/status", UpdateBookStatus)
+            .WithName("Update book's status")
+            .WithSummary("Update book's status");
+        
+        group.MapPut("book", UpdateBook)
+            .WithName("Update book")
+            .WithSummary("Update book details");
+        
         group.MapGet("books/notes", GetAllBooksNotes)
             .WithName("Get all books' notes")
             .WithSummary("Get all notes of all books");
@@ -67,6 +91,10 @@ public static class Users
         group.MapGet("books/quotes", GetAllBooksQuotes)
             .WithName("Get all books' quotes")
             .WithSummary("Get all quotes of all books");
+        
+        group.MapGet("books/authors", GetBooksAuthors)
+            .WithName("Get all books' authors")
+            .WithSummary("Get all books' authors");
         
         group.MapGet("collections", GetUserBookCollections)
             .WithName("Get user's book collections")
@@ -383,7 +411,6 @@ public static class Users
         return Results.Ok(collections);
         
     }
-    
     private static async Task<IResult> CreateUserBookCollection(ClaimsPrincipal claimsPrincipal, CollectionCreateRequest request, BookAppContext db)
     {
         var userId = claimsPrincipal.Claims
@@ -406,5 +433,244 @@ public static class Users
 
         return Results.Created($"/collections/{collection.Id}", collection);
         
+    }
+    private static async Task<IResult> UpdateBookCurrentReadPage(ClaimsPrincipal claimsPrincipal, int id, BookCurrentPageUpdateRequest request, BookAppContext db)
+    {
+        var userId = claimsPrincipal.Claims
+            .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+        var parsedUserId = Guid.Parse(userId);
+
+        var book = await db.Books
+            .FirstOrDefaultAsync(item => item.Id == id && item.UserId == parsedUserId);
+
+        if (book is null)
+        {
+            return Results.NotFound();
+        }
+
+        if (book.TotalPages < request.Page)
+        {
+            return Results.BadRequest(new { Error = "Page is greater than total pages in the book" });
+        }
+
+        book.CurrentPage = request.Page;
+        
+        await db.SaveChangesAsync();
+        
+        return Results.Ok();
+    }
+    private static async Task<IResult> UpdateBook(ClaimsPrincipal claimsPrincipal, BookAppContext db, BookModifyRequest request)
+    {
+        var userId = claimsPrincipal.Claims
+            .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+        var parsedUserId = Guid.Parse(userId);
+        
+        var book = await db.Books
+            .Include(item => item.BookCollections)
+            .Include(item => item.Genres)
+            .FirstOrDefaultAsync(b => b.Id == request.Id && b.UserId == parsedUserId);
+
+        if (book == null)
+            return Results.NotFound("Book not found");
+
+        book.Title = request.Title;
+        book.Description = request.Description;
+        book.TotalPages = request.PageCount;
+        book.Author = request.Author;
+        book.Status = (BookStatus)request.Status;
+
+        var genres = request.Categories.Select(item => new Genre
+        {
+            Name = item
+        }).ToList();
+        
+        book.Genres.Clear();
+        book.Genres = genres;
+        
+        var bookCollections = await db.BookCollections
+                                      .Where(c => request.CollectionIds.Contains(c.Id) 
+                                                  && c.UserId == parsedUserId)
+                                      .ToListAsync();
+        
+        book.BookCollections.Clear();
+        book.BookCollections = bookCollections;
+
+        await db.SaveChangesAsync();
+
+        return Results.Ok();
+    }
+    private static async Task<IResult> GetUserNotesBooks(ClaimsPrincipal claimsPrincipal, BookAppContext db)
+    {
+        var userId = claimsPrincipal.Claims
+            .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+        
+        var parsedUserId = Guid.Parse(userId);
+
+        var books = db.Books
+            .AsNoTracking()
+            .Where(item => item.UserId == parsedUserId);
+
+        books = books
+            .OrderBy(item => item.StartedAt);
+
+        return Results.Ok(await books.Select(item => new NoteBookDto(item.Id, item.Title)).ToListAsync());
+    }
+    private static async Task<IResult> GetBooksAuthors(ClaimsPrincipal claimsPrincipal, BookAppContext db)
+    {
+        var userId = claimsPrincipal.Claims
+            .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+        
+        var parsedUserId = Guid.Parse(userId);
+
+        var books = await db.Books
+            .AsNoTracking()
+            .Where(item => item.UserId == parsedUserId)
+            .Select(item => item.Author).ToListAsync();
+
+        var authorDtos = books
+            .SelectMany(authorString => authorString?.Split(',') ?? Array.Empty<string>())
+            .Select(author => author.Trim())
+            .Where(author => !string.IsNullOrWhiteSpace(author))
+            .Distinct()
+            .Select((authorName, index) => new AuthorDto(index, authorName))
+            .ToList();
+
+        return Results.Ok(authorDtos);
+    }
+    private static async Task<IResult> UpdateBookStatus(ClaimsPrincipal claimsPrincipal, int id, int statusId, BookAppContext db)
+    {
+        var userId = claimsPrincipal.Claims
+            .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+        
+        var parsedUserId = Guid.Parse(userId);
+
+        var book = await db.Books
+            .FirstOrDefaultAsync(item => item.Id == id && item.UserId == parsedUserId);
+
+        if (book is null)
+        {
+            return Results.NotFound();
+        }
+
+        book.Status = (BookStatus)statusId;
+
+        switch (book.Status)
+        {
+            case BookStatus.Finished:
+                book.FinishedAt = DateTime.UtcNow;
+                break;
+            case BookStatus.ToRead:
+                book.FinishedAt = null;
+                book.StartedAt = null;
+                break;
+            case BookStatus.Reading:
+                book.FinishedAt = null;
+                book.StartedAt = DateTime.UtcNow;
+                break;
+        }
+
+        db.Books.Update(book);
+
+        await db.SaveChangesAsync();
+        
+        return Results.Ok();
+    }
+    private static async Task<IResult> GetUserBooks(ClaimsPrincipal claimsPrincipal, int[]? statuses, string[]? authors, string[]? categories, int[]? collections, BookAppContext db)
+    {
+        var userId = claimsPrincipal.Claims
+            .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+        
+        var parsedUserId = Guid.Parse(userId);
+
+        var books = db.Books
+            .Include(item => item.Genres)
+            .Include(item => item.BookCollections)
+            .AsNoTracking()
+            .Where(item => item.UserId == parsedUserId);
+
+        if (statuses?.Length > 0)
+        {
+            books = books.Where(item => statuses.Contains((int)item.Status));
+        }
+        
+        if (authors?.Length > 0)
+        {
+            books = books.Where(item => authors.Contains(item.Author)); //Could be some problems here
+        }
+        
+        if (categories?.Length > 0)
+        {
+            var normalizedCategories = categories.Select(c => c.ToUpper()).ToArray();
+            
+            books = books.Where(item => item.Genres
+                    .Any(k => normalizedCategories.Contains(k.Name.ToUpper())));
+        }
+        
+        if (collections?.Length > 0)
+        {
+            books = books.Where(item => item.BookCollections
+                .Any(k => collections.Contains(k.Id)));
+        }
+
+        books = books
+            .OrderByDescending(item => item.StartedAt);
+
+        return Results.Ok(await books.ToListAsync());
+
+    }
+    private static async Task<IResult> GetUserBookById(ClaimsPrincipal claimsPrincipal, int id, BookAppContext db)
+    {
+        var userId = claimsPrincipal.Claims
+            .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+        
+        var parsedUserId = Guid.Parse(userId);
+
+        var book = await db.Books
+            .Include(item => item.Notes)
+            .ThenInclude(item => item.Type)
+            .Include(item => item.BookCollections)
+            .Include(item => item.Quotes)
+            .Include(item => item.Genres)
+            .AsSplitQuery()
+            .FirstOrDefaultAsync(item => item.Id == id && item.UserId == parsedUserId);
+
+        if (book is null)
+        {
+            return Results.NotFound("Book not found");
+        }
+
+
+        var bookDto = new BookDto(
+            Id: book.Id,
+            Title: book.Title,
+            Description: book.Description,
+            PageCount: book.TotalPages,
+            CurrentPage: book.CurrentPage,
+            StartedAt: book.StartedAt,
+            FinishedAt: book.FinishedAt,
+            Author: book.Author,
+            Status: (int)book.Status,
+            ImageUrl: book.ImageUrl,
+            Categories: book.Genres.Select(item =>  //Extract into separate map method
+                new CategoryDto(item.Id, item.Name)).ToList(),
+            Notes: book.Notes
+                .Select(item => 
+                    new NoteDto(Id: item.Id,
+                    Content: item.Content,
+                    TypeName: item.Type.Name,
+                    Color: item.Type.Color,
+                    Icon: item.Type.Icon,
+                    CreatedAt: item.CreatedAt)
+                ).OrderByDescending(item => item.CreatedAt)
+                .ToList(),
+            Collections: book.BookCollections.Select(item =>
+                new CollectionDto(item.Id, item.Name)).ToList(),
+            Quotes: book.Quotes.Select(item =>
+                new QuoteDto(item.Id, book.Title, item.Content))
+                .ToList());
+
+        return Results.Ok(bookDto);
     }
 }
