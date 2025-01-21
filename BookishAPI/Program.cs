@@ -1154,6 +1154,7 @@ app.MapDelete("/books/{bookId}/quote/{quoteId}", async (ClaimsPrincipal claimsPr
 */
 
 //marked
+/*
 app.MapGet("/books/{bookId}/quote/{quoteId}", async (ClaimsPrincipal claimsPrincipal,
     int bookId,
     int quoteId,
@@ -1196,6 +1197,7 @@ app.MapGet("/books/{bookId}/quote/{quoteId}", async (ClaimsPrincipal claimsPrinc
     return Results.Ok(result);
     
 }).RequireAuthorization();
+*/
 
 //marked
 app.MapGet("/users/quotes", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
