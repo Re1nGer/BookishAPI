@@ -96,6 +96,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapBooksEndpoints();
+app.MapUsersEndpoints();
 
 using (var scope = app.Services.CreateScope())
 {
@@ -278,6 +279,7 @@ app.MapGet("/book/{id}", async (string id, GoogleBooksClient client) =>
 });
 
 //marked
+/*
 app.MapGet("/users/book/{id}", async (ClaimsPrincipal claimsPrincipal, int id, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -332,8 +334,10 @@ app.MapGet("/users/book/{id}", async (ClaimsPrincipal claimsPrincipal, int id, B
     return Results.Ok(bookDto);
 
 }).RequireAuthorization();
+*/
 
 //marked
+/*
 app.MapPut("/users/book/{id}/status", async (ClaimsPrincipal claimsPrincipal, int id, int statusId, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -373,8 +377,10 @@ app.MapPut("/users/book/{id}/status", async (ClaimsPrincipal claimsPrincipal, in
     return Results.Ok();
 
 }).RequireAuthorization();
+*/
 
 //marked
+/*
 app.MapGet("/users/books", async (ClaimsPrincipal claimsPrincipal,
     int[]? statuses,
     string[]? authors,
@@ -423,9 +429,11 @@ app.MapGet("/users/books", async (ClaimsPrincipal claimsPrincipal,
     return Results.Ok(await books.ToListAsync());
 
 }).RequireAuthorization();
+*/
 
 //endpoint for getting books used as a part of notes filter
 //marked
+/*
 app.MapGet("/users/notes/books", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -443,8 +451,10 @@ app.MapGet("/users/notes/books", async (ClaimsPrincipal claimsPrincipal, BookApp
     return Results.Ok(await books.Select(item => new NoteBookDto(item.Id, item.Title)).ToListAsync());
 
 }).RequireAuthorization();
+*/
 
 //marked
+/*
 app.MapGet("/users/books/authors", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -468,6 +478,7 @@ app.MapGet("/users/books/authors", async (ClaimsPrincipal claimsPrincipal, BookA
     return Results.Ok(authorDtos);
 
 }).RequireAuthorization();
+*/
 
 app.MapPost("/book", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, BookAddRequest request) =>
 {
@@ -477,9 +488,6 @@ app.MapPost("/book", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, 
     //gotta handle image url
 
     var parsedUserId = Guid.Parse(userId);
-
-    var bookExists = await db.Books.AnyAsync(item => item.Title == request.Title)
-                     && await db.Books.AnyAsync(item => item.Author == string.Join(",", request.Authors));
 
     var genres = request.Categories.Select(item => new Genre
     {
@@ -529,6 +537,7 @@ app.MapPost("/book", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, 
 }).RequireAuthorization();
 
 //marked
+/*
 app.MapPut("/users/book", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, BookModifyRequest request) =>
 {
     var userId = claimsPrincipal.Claims
@@ -570,6 +579,7 @@ app.MapPut("/users/book", async (ClaimsPrincipal claimsPrincipal, BookAppContext
 
     return Results.Ok();
 });
+*/
 
 //not used yet
 app.MapPut("/users/settings", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, UserSettingsUpdateRequest request) =>
@@ -593,6 +603,7 @@ app.MapPut("/users/settings", async (ClaimsPrincipal claimsPrincipal, BookAppCon
 });
 
 //marked
+/*
 app.MapPut("/users/books/{id}/currentPage", async (
     ClaimsPrincipal claimsPrincipal,
     int id,
@@ -624,6 +635,7 @@ app.MapPut("/users/books/{id}/currentPage", async (
     return Results.Ok();
     
 }).RequireAuthorization();
+*/
 //not used
 app.MapPost("/users/{id}/verify-email", async (Guid id, string token, BookAppContext db) =>
 {
@@ -665,6 +677,7 @@ app.MapPost("/users/goals", async (ClaimsPrincipal claimsPrincipal, GoalCreateRe
 
 // Collection endpoints
 //marked
+/*
 app.MapPost("/users/collections", async (ClaimsPrincipal claimsPrincipal, CollectionCreateRequest request, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -965,6 +978,7 @@ app.MapPost("/users/quote-collections", async (ClaimsPrincipal claimsPrincipal, 
     return Results.Ok();
     
 }).RequireAuthorization();
+*/
 
 app.MapPost("/collections/{collectionId}/books", async (int collectionId, BookAddRequest request, BookAppContext db) =>
 {
@@ -1200,6 +1214,7 @@ app.MapGet("/books/{bookId}/quote/{quoteId}", async (ClaimsPrincipal claimsPrinc
 */
 
 //marked
+/*
 app.MapGet("/users/quotes", async (ClaimsPrincipal claimsPrincipal, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -1222,6 +1237,7 @@ app.MapGet("/users/quotes", async (ClaimsPrincipal claimsPrincipal, BookAppConte
     return Results.Ok(quotes);
     
 }).RequireAuthorization();
+*/
 
 
 // Note endpoints
@@ -1375,6 +1391,7 @@ app.MapPut("/books/{bookId}/note", async (ClaimsPrincipal claimsPrincipal, int b
 */
 
 //marked
+/*
 app.MapPost("/users/note/type", async (ClaimsPrincipal claimsPrincipal, NoteTypeCreateRequest request, BookAppContext db) =>
 {
     var userId = claimsPrincipal.Claims
@@ -1414,6 +1431,7 @@ app.MapGet("/users/note/type", async (ClaimsPrincipal claimsPrincipal, BookAppCo
     return Results.Ok(noteTypes);
     
 }).RequireAuthorization();
+*/
 
 //marked
 /*
