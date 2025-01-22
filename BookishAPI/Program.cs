@@ -115,11 +115,13 @@ if (app.Environment.IsDevelopment())
 }
 
 
+/*
 app.MapGet("/test", async (MailerSendService service, CodeGenerator generator) =>
 {
     return Results.Ok(await service.SendEmailAsync("bekjonibr@gmail.com",
         "verification email", $"here's your verification code {generator.Generate4DigitCode()}"));
 });
+*/
 
 app.MapGet("/categories", async () =>
 {
