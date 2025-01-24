@@ -375,6 +375,7 @@ public static class Users
 
         var book = await db.Books
             .Include(item => item.Quotes)
+            .ThenInclude(item => item.RelatedNotes)
             .AsNoTracking()
             .AsSplitQuery()
             .FirstOrDefaultAsync(item => item.Id == id && item.UserId == parsedUserId);
