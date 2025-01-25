@@ -112,11 +112,18 @@ public static class Users
             .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
 
         var parsedUserId = Guid.Parse(userId);
+        
+        var random = new Random();
+        
+        //40 is a max icon id
+        //mapped on mobile client
+        var iconId = random.Next(1, 40); 
 
         var noteCollection = new QuoteCollection
         {
             Name = request.Name,
-            UserId = parsedUserId
+            UserId = parsedUserId,
+            IconId = iconId
         };
 
         await db.QuoteCollections.AddAsync(noteCollection);
@@ -131,11 +138,18 @@ public static class Users
             .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
 
         var parsedUserId = Guid.Parse(userId);
+        
+        var random = new Random();
+        
+        //40 is a max icon id
+        //mapped on mobile client
+        var iconId = random.Next(1, 40); 
 
         var noteCollection = new NoteCollection
         {
             Name = request.Name,
-            UserId = parsedUserId
+            UserId = parsedUserId,
+            IconId = iconId
         };
 
         await db.NoteCollections.AddAsync(noteCollection);
@@ -202,7 +216,7 @@ public static class Users
         var collections = await db.QuoteCollections
             .Where(item => item.UserId == parsedUserId)
             .OrderByDescending(item => item.Id)
-            .Select(item => new BookCollectionWithCountDto(item.Id, item.Name, item.Quotes.Count()))
+            .Select(item => new QuoteCollectionWithCountDto(item.Id, item.Name, item.Quotes.Count, item.IconId))
             .ToListAsync();
 
         return Results.Ok(collections);
@@ -217,7 +231,7 @@ public static class Users
         var collections = await db.NoteCollections
             .Where(item => item.UserId == parsedUserId)
             .OrderByDescending(item => item.Id)
-            .Select(item => new BookCollectionWithCountDto(item.Id, item.Name, item.Notes.Count()))
+            .Select(item => new BookCollectionWithCountDto(item.Id, item.Name, item.Notes.Count, item.IconId))
             .ToListAsync();
     
         return Results.Ok(collections);

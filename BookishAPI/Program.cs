@@ -580,7 +580,8 @@ public record AuthorDto(int Id, string Name);
 public record CollectionDto(int Id, string Name);
 
 public record CollectionWithCountDto(int Id, string Name, int BooksCount, int IconId);
-public record BookCollectionWithCountDto(int Id, string Name, int NotesCount);
+public record BookCollectionWithCountDto(int Id, string Name, int NotesCount, int IconId);
+public record QuoteCollectionWithCountDto(int Id, string Name, int NotesCount, int IconId);
 public record NoteWithCountDto(int Id, string ImageUrl, string BookName, string Author, int NotesCount);
 public record BookQuoteWithCountDto(int Id, string ImageUrl, string BookName, string Author, int QuotesCount);
 public record BookNote(int Id, string BookName, string Text, string NoteTypeName, string NoteTypeColor, string NoteTypeIcon, DateTime Date);
