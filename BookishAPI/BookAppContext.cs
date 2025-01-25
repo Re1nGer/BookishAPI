@@ -38,6 +38,9 @@ public class BookCollection
 {
     public int Id { get; set; }
     public string Name { get; set; }
+    //icon id that's randomly assigned here 1-39
+    //then this id is mapped on mobile client to svg icon
+    public int IconId { get; set; } 
     public Guid UserId { get; set; }
     public User User { get; set; }
     public List<Book> Books { get; set; }
