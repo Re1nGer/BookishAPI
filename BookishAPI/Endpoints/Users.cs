@@ -406,7 +406,7 @@ public static class Users
         var collections = await db.BookCollections
             .Where(item => item.UserId == parsedUserId)
             .OrderByDescending(item => item.Id)
-            .Select(item => new CollectionWithCountDto(item.Id, item.Name, item.Books.Count))
+            .Select(item => new CollectionWithCountDto(item.Id, item.Name, item.Books.Count, item.IconId))
             .ToListAsync();
 
         return Results.Ok(collections);
@@ -422,11 +422,18 @@ public static class Users
         var user = await db.Users.FirstOrDefaultAsync(item => item.Id == parsedUserId);
         
         if (user == null) return Results.NotFound();
+        
+        var random = new Random();
+        
+        //40 is a max icon id
+        //mapped on mobile client
+        var iconId = random.Next(1, 40); 
 
         var collection = new BookCollection
         {
             UserId = Guid.Parse(userId),
-            Name = request.Name
+            Name = request.Name,
+            IconId = iconId
         };
 
         db.BookCollections.Add(collection);
