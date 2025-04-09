@@ -103,6 +103,10 @@ public static class Users
         group.MapPost("collections", CreateUserBookCollection)
             .WithName("Create user's book collections")
             .WithSummary("Create user's book collections");
+            
+        group.MapGet("home", GetUserHome)
+            .WithName("Get User's home books")
+            .WithSummary("Get User's home books");
 
         return group;
     }
@@ -691,6 +695,60 @@ public static class Users
                 new CollectionDto(item.Id, item.Name)).ToList(),
             Quotes: book.Quotes.Select(item =>
                 new QuoteDto(item.Id, book.Title, item.Content))
+                .ToList());
+
+        return Results.Ok(bookDto);
+    }
+    private static async Task<IResult> GetUserHome(ClaimsPrincipal claimsPrincipal, BookAppContext db)
+    {
+        var userId = claimsPrincipal.Claims
+            .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+        var parsedUserId = Guid.Parse(userId);
+        
+        var user = await db.Users.FirstOrDefaultAsync(item => item.Id == parsedUserId);
+        
+        if (user == null) return Results.NotFound("The user is not found");
+
+        var book = await db.Books
+            .Include(item => item.Notes)
+            .ThenInclude(item => item.Type)
+            .Include(item => item.BookCollections)
+            .Include(item => item.Quotes)
+            .Include(item => item.Genres)
+            .AsSplitQuery()
+            .FirstOrDefaultAsync();
+
+        if (book is null) return Results.NotFound("The book is not found");
+
+        var bookDto = new BookDto(
+            Id: book.Id,
+            Title: book.Title,
+            Description: book.Description,
+            PageCount: book.TotalPages,
+            CurrentPage: book.CurrentPage,
+            StartedAt: book.StartedAt,
+            FinishedAt: book.FinishedAt,
+            Author: book.Author,
+            Status: (int)book.Status,
+            ImageUrl: book.ImageUrl,
+            Categories: book.Genres.Select(item =>  //Extract into separate map method
+                new CategoryDto(item.Id, item.Name)).ToList(),
+            Notes: book.Notes
+                .Select(item => 
+                    new NoteDto(Id: item.Id,
+                    Content: item.Content,
+                    TypeName: item.Type.Name,
+                    Color: item.Type.Color,
+                    Icon: item.Type.Icon,
+                    CreatedAt: item.CreatedAt)
+                ).OrderByDescending(item => item.CreatedAt)
+                .ToList(),
+            Collections: book.BookCollections.Select(item =>
+                new CollectionDto(item.Id, item.Name))
+                .ToList(),
+            Quotes: book.Quotes.Select(item =>
+                    new QuoteDto(item.Id, book.Title, item.Content))
                 .ToList());
 
         return Results.Ok(bookDto);

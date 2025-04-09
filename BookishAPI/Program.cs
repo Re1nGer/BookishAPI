@@ -194,6 +194,8 @@ app.MapPost("/code-verify", async (CodeVerify request, BookAppContext db) =>
     }
 
     verificationCode.IsUsed = true;
+    
+    await db.SaveChangesAsync();
         
     return Results.Ok();
 });
