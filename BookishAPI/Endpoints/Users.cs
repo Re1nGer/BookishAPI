@@ -1,5 +1,9 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using MongoDB.Bson;
+using MongoDB.Driver;
+using MongoDB.Driver.GridFS;
 
 namespace BookishAPI.Endpoints;
 
@@ -107,6 +111,10 @@ public static class Users
         group.MapGet("home", GetUserHome)
             .WithName("Get User's home books")
             .WithSummary("Get User's home books");
+        
+        group.MapPost("/{id}/files", UploadFile)
+            .DisableAntiforgery()
+            .Accepts<IFormFile>("multipart/form-data");
 
         return group;
     }
@@ -753,4 +761,111 @@ public static class Users
 
         return Results.Ok(bookDto);
     }
+
+    private static async Task<IResult> GetUserFiles(ClaimsPrincipal claimsPrincipal, string id, IGridFSBucket gridFS)
+    {
+        try
+        {
+            if (!ObjectId.TryParse(id, out var objectId))
+                return Results.BadRequest("Invalid file ID format");
+
+            var filter = Builders<GridFSFileInfo>.Filter.Eq("_id", objectId);
+            
+            var fileInfo = await gridFS.Find(filter).FirstOrDefaultAsync();
+        
+            if (fileInfo == null)
+                return Results.NotFound("File not found");
+
+            // Extract content type and original filename from metadata
+            var contentType = "application/octet-stream"; // Default
+            
+            if (fileInfo.Metadata != null && fileInfo.Metadata.Contains("contentType"))
+                contentType = fileInfo.Metadata["contentType"].AsString;
+
+            // Download file as a stream
+            var stream = await gridFS.OpenDownloadStreamAsync(objectId);
+        
+            return Results.File(stream, contentType, fileInfo.Filename);
+        }
+        catch (Exception ex)
+        {
+            return Results.Problem($"Error downloading file: {ex.Message}");
+        }
+    }
+    private static async Task<IResult> UploadFile(int userId, [FromForm] FileUploadRequest request, IGridFSBucket gridFS)
+    {
+        try
+        {
+            if (!request.Files.Any())
+                return Results.BadRequest("No files uploaded");
+
+            var uploadResults = new List<object>();
+
+            foreach (var file in request.Files)
+            {
+                var metadata = new BsonDocument
+                {
+                    { "fileName", file.FileName },
+                    { "contentType", file.ContentType },
+                    { "uploadDate", DateTime.UtcNow },
+                    { "userId", userId }
+                };
+
+                // Open file stream for reading
+                using var stream = file.OpenReadStream();
+            
+                // Upload to GridFS
+                var id = await gridFS.UploadFromStreamAsync(
+                    file.FileName,
+                    stream,
+                    new GridFSUploadOptions { Metadata = metadata }
+                );
+
+                uploadResults.Add(new { FileId = id.ToString(), file.FileName });
+            }
+
+            return Results.Ok(new { Files = uploadResults });
+        }
+        catch (Exception ex)
+        {
+            return Results.Problem($"Error uploading files: {ex.Message}");
+        }
+    }
+    
+    private static async Task<IResult> GetUserFile(ClaimsPrincipal claimsPrincipal, string userId, string fileId, IGridFSBucket gridFS)
+    {
+        try
+        {
+            if (!ObjectId.TryParse(fileId, out var objectId))
+                return Results.BadRequest("Invalid file ID format");
+
+            // Find file info first to get metadata
+            var filter = Builders<GridFSFileInfo>.Filter.And(
+                Builders<GridFSFileInfo>.Filter.Eq("_id", objectId),
+                Builders<GridFSFileInfo>.Filter.Eq("metadata.userId", userId)
+            );
+        
+            var fileInfo = await gridFS.Find(filter).FirstOrDefaultAsync();
+        
+            if (fileInfo == null)
+                return Results.NotFound("File not found or doesn't belong to the specified user");
+
+            var contentType = "application/octet-stream"; // Default
+            if (fileInfo.Metadata != null && fileInfo.Metadata.Contains("contentType"))
+                contentType = fileInfo.Metadata["contentType"].AsString;
+
+            var stream = await gridFS.OpenDownloadStreamAsync(objectId);
+        
+            return Results.File(stream, contentType, fileInfo.Filename);
+        }
+        catch (Exception ex)
+        {
+            return Results.Problem($"Error downloading file: {ex.Message}");
+        }
+    }
+}
+
+public class FileUploadRequest
+{
+    public List<IFormFile> Files { get; set; } = new();
 }
