@@ -32,6 +32,7 @@ public class User
     public List<SpacedRepetitionGroup> SpacedRepetitionGroups { get; set; }
     public List<VerificationCode> VerificationCodes { get; set; }
     public UserSettings Settings { get; set; }
+    public List<ReadEvent> ReadEvents { get; set; }
 }
 
 public class BookCollection
@@ -90,6 +91,7 @@ public class Book
     public List<Note> Notes { get; set; }
     public List<Quote> Quotes { get; set; }
     public List<ReadingSession> ReadingSessions { get; set; }
+    public ReadEvent ReadEvent { get; set; }
     public int CurrentPage { get; set; }
     public int TotalPages { get; set; }
 }
@@ -227,6 +229,20 @@ public class UserSettings
     public TimeFormat TimeFormat { get; set; }
 }
 
+public class ReadEvent
+{
+    public long Id { get; set; }
+    public Guid UserId { get; set; }
+    public User User { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public Book Book { get; set; }
+    public int BookId { get; set; }
+    public short Rating { get; set; }
+    public string PhotoId { get; set; } //Id of the image associated with the event
+    public string Memo { get; set; } //short memo associated with the event
+}
+
+
 // DbContext
 
 public class BookAppContext : DbContext
@@ -247,6 +263,7 @@ public class BookAppContext : DbContext
     public DbSet<VerificationCode> VerificationCodes { get; set; }
     public DbSet<NoteCollection> NoteCollections { get; set; }
     public DbSet<QuoteCollection> QuoteCollections { get; set; }
+    public DbSet<ReadEvent> ReadEvents { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

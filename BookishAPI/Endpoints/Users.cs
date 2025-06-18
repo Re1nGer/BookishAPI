@@ -116,7 +116,33 @@ public static class Users
             .DisableAntiforgery()
             .Accepts<IFormFile>("multipart/form-data");
 
+        group.MapPost("/books/read-events", CreateReadEvent)
+            .DisableAntiforgery()
+            .Accepts<IFormFile>("multipart/form-data");
+
+        group.MapGet("read-events", GetUserReadEvents)
+            .WithName("Get User's events")
+            .WithSummary("Get User's events");
+
         return group;
+    }
+    
+    private static async Task<IResult> GetUserReadEvents(ClaimsPrincipal claimsPrincipal, BookAppContext db,  DateTime date)
+    {
+        var userId = claimsPrincipal.Claims
+            .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+        var parsedUserId = Guid.Parse(userId);
+
+        var userEvents = await db.ReadEvents
+            .Include(j => j.Book)
+            .Where(j => j.UserId == parsedUserId)
+            .Where(j => j.CreatedAt.Month == date.Month
+                        && j.CreatedAt.Year == date.Year)
+            .Select(j => new UserEvent(j.Id, j.Book.Id, j.Book.ImageUrl, j.Book.FinishedAt.GetValueOrDefault()))
+            .ToListAsync();
+
+        return Results.Ok(userEvents);
     }
     private static async Task<IResult> CreateQuoteCollections(ClaimsPrincipal claimsPrincipal, BookAppContext db, NoteCollectionCreateRequest request)
     {
@@ -594,6 +620,7 @@ public static class Users
         {
             case BookStatus.Finished:
                 book.FinishedAt = DateTime.UtcNow;
+                
                 break;
             case BookStatus.ToRead:
                 book.FinishedAt = null;
@@ -862,6 +889,54 @@ public static class Users
         {
             return Results.Problem($"Error downloading file: {ex.Message}");
         }
+    }
+    
+    private static async Task<IResult> CreateReadEvent(ClaimsPrincipal claimsPrincipal, BookAppContext db, IGridFSBucket gridFS, [FromForm]CreateReadEventRequest request) {
+        
+        var userId = claimsPrincipal.Claims
+            .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+        var parsedUserId = Guid.Parse(userId);
+        
+        var user = await db.Users.FirstOrDefaultAsync(item => item.Id == parsedUserId);
+        
+        if (user == null) return Results.NotFound("The user is not found");
+
+        var secureFileName = $"{Guid.NewGuid()}{Path.GetExtension(request.Image.FileName)}";
+        
+        var metadata = new BsonDocument
+        {
+            { "fileName",  secureFileName},
+            { "contentType", request.Image.ContentType },
+            { "uploadDate", DateTime.UtcNow },
+            { "userId", userId }
+        };
+
+        // Open file stream for reading
+        using var stream = request.Image.OpenReadStream();
+    
+        // Upload to GridFS
+        var id = await gridFS.UploadFromStreamAsync(
+            request.Image.FileName,
+            stream,
+            new GridFSUploadOptions { Metadata = metadata }
+        );
+
+        var readEvent = new ReadEvent()
+        {
+            CreatedAt = DateTime.UtcNow,
+            Rating = request.Rating,
+            Memo = request.Memo,
+            PhotoId = id.ToString(),
+            BookId = request.BookId,
+            UserId = parsedUserId
+        };
+
+        await db.ReadEvents.AddAsync(readEvent);
+
+        await db.SaveChangesAsync();
+
+        return Results.Ok(new { readEvent.Id });
     }
 }
 

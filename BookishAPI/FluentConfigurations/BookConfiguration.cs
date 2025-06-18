@@ -16,6 +16,9 @@ public class BookConfiguration : IEntityTypeConfiguration<Book>
 
         builder.HasMany(item => item.Notes)
             .WithOne(item => item.Book);
+        
+        builder.HasOne(item => item.ReadEvent)
+            .WithOne(item => item.Book);
 
         builder
             .HasMany(item => item.ReadingSessions)
