@@ -116,7 +116,7 @@ public static class Users
             .DisableAntiforgery()
             .Accepts<IFormFile>("multipart/form-data");
 
-        group.MapPost("/books/read-events", CreateReadEvent)
+        group.MapPost("books/read-events", CreateReadEvent)
             .DisableAntiforgery()
             .Accepts<IFormFile>("multipart/form-data");
 
@@ -131,18 +131,26 @@ public static class Users
     {
         var userId = claimsPrincipal.Claims
             .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
-
+        
         var parsedUserId = Guid.Parse(userId);
+        
+        var startOfMonth = new DateTime(date.Year, date.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var startOfNextMonth = startOfMonth.AddMonths(1);
 
-        var userEvents = await db.ReadEvents
-            .Include(j => j.Book)
-            .Where(j => j.UserId == parsedUserId)
-            .Where(j => j.CreatedAt.Month == date.Month
-                        && j.CreatedAt.Year == date.Year)
-            .Select(j => new UserEvent(j.Id, j.Book.Id, j.Book.ImageUrl, j.Book.FinishedAt.GetValueOrDefault()))
+        var userEventsOptimal = await db.ReadEvents
+            .Where(j => j.UserId == parsedUserId && 
+                        j.CreatedAt >= startOfMonth && 
+                        j.CreatedAt < startOfNextMonth)
+            .OrderByDescending(j => j.CreatedAt)
+            .Select(j => new UserEvent(
+                j.Id, 
+                j.Book.Id, 
+                j.Book.ImageUrl, 
+                j.Book.FinishedAt.GetValueOrDefault()))
             .ToListAsync();
-
-        return Results.Ok(userEvents);
+        
+        return Results.Ok(userEventsOptimal);
+        
     }
     private static async Task<IResult> CreateQuoteCollections(ClaimsPrincipal claimsPrincipal, BookAppContext db, NoteCollectionCreateRequest request)
     {
@@ -901,33 +909,39 @@ public static class Users
         var user = await db.Users.FirstOrDefaultAsync(item => item.Id == parsedUserId);
         
         if (user == null) return Results.NotFound("The user is not found");
-
-        var secureFileName = $"{Guid.NewGuid()}{Path.GetExtension(request.Image.FileName)}";
         
-        var metadata = new BsonDocument
-        {
-            { "fileName",  secureFileName},
-            { "contentType", request.Image.ContentType },
-            { "uploadDate", DateTime.UtcNow },
-            { "userId", userId }
-        };
+        ObjectId id = default;
 
-        // Open file stream for reading
-        using var stream = request.Image.OpenReadStream();
-    
-        // Upload to GridFS
-        var id = await gridFS.UploadFromStreamAsync(
-            request.Image.FileName,
-            stream,
-            new GridFSUploadOptions { Metadata = metadata }
-        );
+        if (request.Image is not null)
+        {
+            var secureFileName = $"{Guid.NewGuid()}{Path.GetExtension(request.Image.FileName)}";
+            
+            var metadata = new BsonDocument
+            {
+                { "fileName",  secureFileName},
+                { "contentType", request.Image.ContentType },
+                { "uploadDate", DateTime.UtcNow },
+                { "userId", userId }
+            };
+            
+            // Open file stream for reading
+            using var stream = request.Image.OpenReadStream();
+        
+            // Upload to GridFS
+            id = await gridFS.UploadFromStreamAsync(
+                request.Image.FileName,
+                stream,
+                new GridFSUploadOptions { Metadata = metadata }
+            );
+        }
+
 
         var readEvent = new ReadEvent()
         {
             CreatedAt = DateTime.UtcNow,
             Rating = request.Rating,
             Memo = request.Memo,
-            PhotoId = id.ToString(),
+            PhotoId = request.Image is not null ? id.ToString() : null,
             BookId = request.BookId,
             UserId = parsedUserId
         };

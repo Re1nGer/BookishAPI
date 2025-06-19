@@ -619,7 +619,13 @@ public record QuoteDtoWithCount(int Id, int BookId, string BookName, string Text
 
 public record SignUpErrors(string UserExists, string Email, string Password);
 
-public record CreateReadEventRequest(int BookId, IFormFile Image, string Memo, short Rating);
+public record CreateReadEventRequest
+{
+    public int BookId { get; init; }
+    public IFormFile? Image { get; init; }
+    public string? Memo { get; init; }
+    public short Rating { get; init; }
+}
 
 public record UserEvent(long Id, int BookId, string ImageUrl, DateTime FinishedAt);
 
