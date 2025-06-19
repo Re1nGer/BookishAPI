@@ -238,8 +238,8 @@ public class ReadEvent
     public Book Book { get; set; }
     public int BookId { get; set; }
     public short Rating { get; set; }
-    public string PhotoId { get; set; } //Id of the image associated with the event
-    public string Memo { get; set; } //short memo associated with the event
+    public string? PhotoId { get; set; } //Id of the image associated with the event
+    public string? Memo { get; set; } //short memo associated with the event
 }
 
 
