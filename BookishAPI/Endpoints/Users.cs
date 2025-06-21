@@ -679,7 +679,7 @@ public static class Users
         }
 
         books = books
-            .OrderByDescending(item => item.StartedAt);
+            .OrderByDescending(item => item.UpdatedAt);
 
         return Results.Ok(await books.ToListAsync());
 
