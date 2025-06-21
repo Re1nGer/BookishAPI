@@ -127,20 +127,15 @@ public static class Users
         return group;
     }
     
-    private static async Task<IResult> GetUserReadEvents(ClaimsPrincipal claimsPrincipal, BookAppContext db,  DateTime date)
+    private static async Task<IResult> GetUserReadEvents(ClaimsPrincipal claimsPrincipal, BookAppContext db)
     {
         var userId = claimsPrincipal.Claims
             .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
         
         var parsedUserId = Guid.Parse(userId);
-        
-        var startOfMonth = new DateTime(date.Year, date.Month, 1, 0, 0, 0, DateTimeKind.Utc);
-        var startOfNextMonth = startOfMonth.AddMonths(1);
 
         var userEventsOptimal = await db.ReadEvents
-            .Where(j => j.UserId == parsedUserId && 
-                        j.CreatedAt >= startOfMonth && 
-                        j.CreatedAt < startOfNextMonth)
+            .Where(j => j.UserId == parsedUserId)
             .OrderByDescending(j => j.CreatedAt)
             .Select(j => new UserEvent(
                 j.Id, 
@@ -754,11 +749,13 @@ public static class Users
         if (user == null) return Results.NotFound("The user is not found");
 
         var book = await db.Books
+            .Where(j => j.Status == BookStatus.Reading)
             .Include(item => item.Notes)
             .ThenInclude(item => item.Type)
             .Include(item => item.BookCollections)
             .Include(item => item.Quotes)
             .Include(item => item.Genres)
+            .OrderByDescending(j => j.UpdatedAt)
             .AsSplitQuery()
             .FirstOrDefaultAsync();
 
