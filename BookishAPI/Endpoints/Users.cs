@@ -124,6 +124,15 @@ public static class Users
             .WithName("Get User's events")
             .WithSummary("Get User's events");
 
+        group.MapGet("read-event", GetUserReadEvent)
+            .WithName("Get User's event")
+            .WithSummary("Get User's event");
+
+        group.MapGet("memo/image/{id}", GetUserFiles)
+            .WithName("Get User's event image")
+            .WithSummary("Get User's event image")
+            .AllowAnonymous();
+            
         return group;
     }
     
@@ -141,8 +150,31 @@ public static class Users
                 j.Id, 
                 j.Book.Id, 
                 j.Book.ImageUrl, 
-                j.Book.FinishedAt.GetValueOrDefault()))
+                j.Book.FinishedAt.GetValueOrDefault(),
+                j.PhotoId))
             .ToListAsync();
+        
+        return Results.Ok(userEventsOptimal);
+        
+    }
+    
+    private static async Task<IResult> GetUserReadEvent(ClaimsPrincipal claimsPrincipal, BookAppContext db, long id)
+    {
+        var userId = claimsPrincipal.Claims
+            .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+        
+        var parsedUserId = Guid.Parse(userId);
+
+        var userEventsOptimal = await db.ReadEvents
+            .Where(j => j.UserId == parsedUserId && j.Id == id)
+            .OrderByDescending(j => j.CreatedAt)
+            .Select(j => new UserEvent(
+                j.Id, 
+                j.Book.Id, 
+                j.Book.ImageUrl, 
+                j.Book.FinishedAt.GetValueOrDefault(),
+                j.PhotoId))
+            .FirstOrDefaultAsync();
         
         return Results.Ok(userEventsOptimal);
         
@@ -864,17 +896,22 @@ public static class Users
         }
     }
     
-    private static async Task<IResult> GetUserFile(ClaimsPrincipal claimsPrincipal, string userId, string fileId, IGridFSBucket gridFS)
+    private static async Task<IResult> GetUserFile(ClaimsPrincipal claimsPrincipal, string id, IGridFSBucket gridFS)
     {
         try
         {
-            if (!ObjectId.TryParse(fileId, out var objectId))
+            var userId = claimsPrincipal.Claims
+                .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+            var parsedUserId = Guid.Parse(userId);
+        
+            if (!ObjectId.TryParse(id, out var objectId))
                 return Results.BadRequest("Invalid file ID format");
 
             // Find file info first to get metadata
             var filter = Builders<GridFSFileInfo>.Filter.And(
                 Builders<GridFSFileInfo>.Filter.Eq("_id", objectId),
-                Builders<GridFSFileInfo>.Filter.Eq("metadata.userId", userId)
+                Builders<GridFSFileInfo>.Filter.Eq("metadata.userId", parsedUserId)
             );
         
             var fileInfo = await gridFS.Find(filter).FirstOrDefaultAsync();
@@ -896,7 +933,12 @@ public static class Users
         }
     }
     
-    private static async Task<IResult> CreateReadEvent(ClaimsPrincipal claimsPrincipal, BookAppContext db, IGridFSBucket gridFS, [FromForm]CreateReadEventRequest request) {
+    private static async Task<IResult> CreateReadEvent(
+        ClaimsPrincipal claimsPrincipal,
+        BookAppContext db,
+        IGridFSBucket gridFS,
+        [FromForm]CreateReadEventRequest request)
+    {
         
         var userId = claimsPrincipal.Claims
             .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
