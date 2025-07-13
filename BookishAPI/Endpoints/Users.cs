@@ -136,7 +136,7 @@ public static class Users
         return group;
     }
     
-    private static async Task<IResult> GetUserReadEvents(ClaimsPrincipal claimsPrincipal, BookAppContext db)
+    private static async Task<IResult> GetUserReadEvents(ClaimsPrincipal claimsPrincipal, BookAppContext db, [FromQuery] DateTime? day)
     {
         var userId = claimsPrincipal.Claims
             .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
@@ -145,10 +145,13 @@ public static class Users
 
         var userEventsOptimal = await db.ReadEvents
             .Where(j => j.UserId == parsedUserId)
+            .Where(j => day == null || j.CreatedAt.Date == day.Value.Date)
             .OrderByDescending(j => j.CreatedAt)
             .Select(j => new UserEvent(
                 j.Id, 
                 j.Book.Id, 
+                j.Book.Title,
+                j.Rating,
                 j.Book.ImageUrl, 
                 j.Book.FinishedAt.GetValueOrDefault(),
                 j.PhotoId))
@@ -171,6 +174,8 @@ public static class Users
             .Select(j => new UserEvent(
                 j.Id, 
                 j.Book.Id, 
+                j.Book.Title,
+                j.Rating,
                 j.Book.ImageUrl, 
                 j.Book.FinishedAt.GetValueOrDefault(),
                 j.PhotoId))
