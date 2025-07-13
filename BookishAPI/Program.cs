@@ -627,5 +627,5 @@ public record CreateReadEventRequest
     public short Rating { get; init; }
 }
 
-public record UserEvent(long Id, int BookId, string BookName, short Rating, string ImageUrl, DateTime FinishedAt, string? ImageId);
+public record UserEvent(long Id, int BookId, string BookName, short Rating, string ImageUrl, DateTime FinishedAt, string? ImageId, string? Memo);
 

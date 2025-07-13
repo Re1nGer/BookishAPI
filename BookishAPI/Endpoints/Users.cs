@@ -124,7 +124,7 @@ public static class Users
             .WithName("Get User's events")
             .WithSummary("Get User's events");
 
-        group.MapGet("read-event", GetUserReadEvent)
+        group.MapGet("read-event/{id}", GetUserReadEvent)
             .WithName("Get User's event")
             .WithSummary("Get User's event");
 
@@ -154,7 +154,8 @@ public static class Users
                 j.Rating,
                 j.Book.ImageUrl, 
                 j.Book.FinishedAt.GetValueOrDefault(),
-                j.PhotoId))
+                j.PhotoId,
+                j.Memo))
             .ToListAsync();
         
         return Results.Ok(userEventsOptimal);
@@ -178,7 +179,8 @@ public static class Users
                 j.Rating,
                 j.Book.ImageUrl, 
                 j.Book.FinishedAt.GetValueOrDefault(),
-                j.PhotoId))
+                j.PhotoId,
+                j.Memo))
             .FirstOrDefaultAsync();
         
         return Results.Ok(userEventsOptimal);
