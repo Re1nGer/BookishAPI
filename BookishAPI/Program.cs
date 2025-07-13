@@ -628,4 +628,5 @@ public record CreateReadEventRequest
 }
 
 public record UserEvent(long Id, int BookId, string BookName, short Rating, string ImageUrl, DateTime FinishedAt, string? ImageId, string? Memo);
+public record UserMemoryEvent(long Id, int BookId, string Author, string BookName, short Rating, string ImageUrl, string? StartedAt, string? FinishedAt, string? ImageId, string? Memo);
 

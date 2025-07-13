@@ -172,13 +172,15 @@ public static class Users
         var userEventsOptimal = await db.ReadEvents
             .Where(j => j.UserId == parsedUserId && j.Id == id)
             .OrderByDescending(j => j.CreatedAt)
-            .Select(j => new UserEvent(
+            .Select(j => new UserMemoryEvent(
                 j.Id, 
                 j.Book.Id, 
+                j.Book.Author,
                 j.Book.Title,
                 j.Rating,
                 j.Book.ImageUrl, 
-                j.Book.FinishedAt.GetValueOrDefault(),
+                j.Book.StartedAt.HasValue ? j.Book.StartedAt.Value.Date.ToShortDateString() : null,
+                j.Book.FinishedAt.HasValue ? j.Book.FinishedAt.Value.Date.ToShortDateString() : null,
                 j.PhotoId,
                 j.Memo))
             .FirstOrDefaultAsync();
