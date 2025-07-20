@@ -366,6 +366,7 @@ public static class Books
         
         var quote = new Quote
         {
+            CreatedAt = DateTime.UtcNow,
             BookId = bookId,
             Content = request.Content,
         };

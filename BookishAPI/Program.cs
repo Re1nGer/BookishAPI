@@ -628,5 +628,9 @@ public record CreateReadEventRequest
 }
 
 public record UserEvent(long Id, int BookId, string BookName, short Rating, string ImageUrl, DateTime FinishedAt, string? ImageId, string? Memo);
+public record UserStat(long PagesRead, long BooksRead, long QuotesSaved, long NotesSaved, BookCategory[] TopCategories, BookAuthor[] TopAuthors);
+
+public record BookCategory(int Id, string Name);
+public record BookAuthor(int Id, string Name);
 public record UserMemoryEvent(long Id, int BookId, string Author, string BookName, short Rating, string ImageUrl, string? StartedAt, string? FinishedAt, string? ImageId, string? Memo);
 

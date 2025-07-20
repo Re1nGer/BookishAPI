@@ -133,7 +133,94 @@ public static class Users
             .WithSummary("Get User's event image")
             .AllowAnonymous();
             
+        group.MapGet("stats", GetUserStats)
+            .WithName("Get User's stats")
+            .WithSummary("Get User's stats");
+            
         return group;
+    }
+    
+    private static async Task<IResult> GetUserStats(ClaimsPrincipal claimsPrincipal, BookAppContext db, [FromQuery] DateTime? from, DateTime? to)
+    {
+        var userId = claimsPrincipal.Claims
+            .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+        
+        var parsedUserId = Guid.Parse(userId);
+
+        var pagesRead = await db.Books
+            .Where(j => j.UserId == parsedUserId)
+            .Where(j => j.Status == BookStatus.Finished)
+            .Where(j => from == null || j.StartedAt >= from.Value.Date)
+            .Where(j => to == null || j.StartedAt <= to.Value.Date)
+            .SumAsync(j => j.TotalPages);
+
+        var booksRead = await db.Books
+            .Where(j => j.UserId == parsedUserId)
+            .Where(j => from == null || j.StartedAt >= from.Value.Date)
+            .Where(j => to == null || j.StartedAt <= to.Value.Date)
+            .Where(j => j.Status == BookStatus.Finished)
+            .LongCountAsync();
+
+        var notesSaved = await db.Notes
+            .Where(j => from == null || j.CreatedAt >= from.Value.Date)
+            .Where(j => to == null || j.CreatedAt <= to.Value.Date)
+            .Where(j => j.Book.UserId == parsedUserId)
+            .LongCountAsync();
+
+        var quotesSaved = await db.Quotes
+            .Where(j => from == null || j.CreatedAt >= from.Value.Date)
+            .Where(j => to == null || j.CreatedAt <= to.Value.Date)
+            .Where(j => j.Book.UserId == parsedUserId)
+            .LongCountAsync();
+
+        var topCategoryNames = await db.Books
+            .Where(j => j.UserId == parsedUserId)
+            .Where(j => from == null || j.StartedAt >= from.Value.Date)
+            .Where(j => to == null || j.StartedAt <= to.Value.Date)
+            .SelectMany(j => j.Genres)
+            .GroupBy(g => g.Name)
+            .OrderByDescending(g => g.Count())
+            .Take(5) // top 5 categories
+            .Select(g => g.Key)
+            .ToListAsync();
+
+        var topCategories = await db.Books
+            .Where(j => j.UserId == parsedUserId)
+            .Where(j => from == null || j.StartedAt >= from.Value.Date)
+            .Where(j => to == null || j.StartedAt <= to.Value.Date)
+            .Where(j => j.Genres.Any(g => topCategoryNames.Contains(g.Name)))
+            .OrderByDescending(j => j.Author)
+            .Take(2)
+            .Select(j => new BookCategory(j.Id, string.Join(",", j.Genres.Select(a => a.Name))))
+            .ToArrayAsync();
+
+        var topAuthors = await db.Books
+            .Where(j => j.UserId == parsedUserId)
+            .Where(j => from == null || j.StartedAt >= from.Value.Date)
+            .Where(j => to == null || j.StartedAt <= to.Value.Date)
+            .GroupBy(j => j.Author)
+            .OrderByDescending(g => g.Count())
+            .Take(2)
+            .Select(g => new BookAuthor(g.First().Id, g.Key))
+            .ToArrayAsync();
+
+
+        var pagesWithCurrentBooks = await db.Books
+            .Where(j => j.UserId == parsedUserId)
+            .Where(j => from == null || j.StartedAt >= from.Value.Date)
+            .Where(j => to == null || j.StartedAt <= to.Value.Date)
+            .Where(j => j.Status == BookStatus.Reading
+                        || j.Status == BookStatus.GaveUp
+                        || j.Status == BookStatus.Paused)
+            .SumAsync(j => j.CurrentPage);
+        
+        return Results.Ok(new UserStat(
+            pagesRead + pagesWithCurrentBooks,
+            booksRead,
+            quotesSaved,
+            notesSaved,
+            topCategories,
+            topAuthors));
     }
     
     private static async Task<IResult> GetUserReadEvents(ClaimsPrincipal claimsPrincipal, BookAppContext db, [FromQuery] DateTime? day)
