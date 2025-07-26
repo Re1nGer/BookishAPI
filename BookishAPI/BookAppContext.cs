@@ -167,6 +167,7 @@ public class SpacedRepetitionGroup
     public string Name { get; set; }
     public Guid UserId { get; set; }
     public User User { get; set; }
+    public int IconId { get; set; }
     public List<Note> Notes { get; set; }
     public List<Quote> Quotes { get; set; }
     public DateTime RemindAt { get; set; }

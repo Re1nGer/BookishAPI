@@ -457,33 +457,6 @@ app.MapDelete("/collections/{collectionId}/books/{bookId}", async (int collectio
     return Results.NoContent();
 }).RequireAuthorization();
 
-// Spaced Repetition Group endpoints
-app.MapPost("/users/{userId}/spaced-repetition-groups",
-    async (ClaimsPrincipal claimsPrincipal, SpacedRepetitionGroupCreateRequest request, BookAppContext db) =>
-{
-    var userId = claimsPrincipal.Claims
-        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
-
-    var parsedUserId = Guid.Parse(userId);
-    
-    var user = await db.Users
-        .FirstOrDefaultAsync(item => item.Id == parsedUserId);
-    
-    if (user == null) return Results.NotFound();
-
-    var group = new SpacedRepetitionGroup
-    {
-        UserId = parsedUserId,
-        Name = request.Name,
-        RemindAt = request.RemindAt
-    };
-
-    db.SpacedRepetitionGroups.Add(group);
-    await db.SaveChangesAsync();
-
-    return Results.Created($"/spaced-repetition-groups/{group.Id}", group);
-}).RequireAuthorization();
-
 app.MapPost("/users/spaced-repetition-groups/{groupId}/quote",
     async (int groupId, SpacedRepetitionItemAddRequest request, BookAppContext db) =>
 {
