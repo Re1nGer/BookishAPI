@@ -151,13 +151,18 @@ public static class Users
 
         var parsedUserId = Guid.Parse(userId);
 
+        var random = new Random();
+        
+        var iconId = random.Next(1, 40); 
+
         var group = new SpacedRepetitionGroup()
         {
             UserId = parsedUserId,
             Name = request.Name,
             Notes = db.Notes.Where(j => request.NoteIds.Contains(j.Id)).ToList(),
             Quotes = db.Quotes.Where(j => request.QuoteIds.Contains(j.Id)).ToList(),
-            RemindAt = DateTime.UtcNow
+            RemindAt = DateTime.UtcNow,
+            IconId = iconId
         };
 
         await db.SpacedRepetitionGroups.AddAsync(group);
