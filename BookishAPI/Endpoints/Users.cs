@@ -140,8 +140,27 @@ public static class Users
         group.MapPost("repetition-group", CreateRepetitionGroup)
             .WithName("Create User's repetition group")
             .WithSummary("Create User's repetition group");
+        
+        group.MapGet("repetition-groups", GetRepetitionGroups)
+            .WithName("Get User's repetition group")
+            .WithSummary("Get User's repetition group");
             
         return group;
+    }
+    
+    private static async Task<IResult> GetRepetitionGroups(ClaimsPrincipal claimsPrincipal, BookAppContext db)
+    {
+        var userId = claimsPrincipal.Claims
+            .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+        var parsedUserId = Guid.Parse(userId);
+
+        var groups = await db.SpacedRepetitionGroups
+            .Where(x => x.UserId == parsedUserId)
+            .Select(x => new SpaceGroup(x.Id, x.Name, x.IconId, x.Notes.Count + x.Quotes.Count))
+            .ToListAsync();
+        
+        return Results.Ok(groups);
     }
     
     private static async Task<IResult> CreateRepetitionGroup(ClaimsPrincipal claimsPrincipal, BookAppContext db, CreateRepetitionGroup request)
