@@ -627,6 +627,8 @@ public record CreateReadEventRequest
     public short Rating { get; init; }
 }
 
+public record CreateRepetitionGroup(string Name, List<int> QuoteIds, List<int> NoteIds);
+
 public record UserEvent(long Id, int BookId, string BookName, short Rating, string ImageUrl, DateTime FinishedAt, string? ImageId, string? Memo);
 public record UserStat(long PagesRead, long BooksRead, long QuotesSaved, long NotesSaved, BookCategory[] TopCategories, BookAuthor[] TopAuthors);
 

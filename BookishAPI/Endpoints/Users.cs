@@ -137,7 +137,34 @@ public static class Users
             .WithName("Get User's stats")
             .WithSummary("Get User's stats");
             
+        group.MapPost("repetition-group", CreateRepetitionGroup)
+            .WithName("Create User's repetition group")
+            .WithSummary("Create User's repetition group");
+            
         return group;
+    }
+    
+    private static async Task<IResult> CreateRepetitionGroup(ClaimsPrincipal claimsPrincipal, BookAppContext db, CreateRepetitionGroup request)
+    {
+        var userId = claimsPrincipal.Claims
+            .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+        var parsedUserId = Guid.Parse(userId);
+
+        var group = new SpacedRepetitionGroup()
+        {
+            UserId = parsedUserId,
+            Name = request.Name,
+            Notes = db.Notes.Where(j => request.NoteIds.Contains(j.Id)).ToList(),
+            Quotes = db.Quotes.Where(j => request.QuoteIds.Contains(j.Id)).ToList(),
+            RemindAt = DateTime.UtcNow
+        };
+
+        await db.SpacedRepetitionGroups.AddAsync(group);
+
+        await db.SaveChangesAsync();
+        
+        return Results.Ok();
     }
     
     private static async Task<IResult> GetUserStats(ClaimsPrincipal claimsPrincipal, BookAppContext db, [FromQuery] DateTime? from, DateTime? to)
