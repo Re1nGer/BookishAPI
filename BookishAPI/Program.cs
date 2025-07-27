@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using BookishAPI;
 using BookishAPI.Endpoints;
+using BookishAPI.Schedulers;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
@@ -27,6 +28,9 @@ builder.Services.AddScoped<CodeGenerator>();
 builder.Services.AddScoped<GoogleBooksClient>();
 builder.Services.AddScoped<CategoryMapper>();
 builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<NotificationService>();
+builder.Services.AddScoped<FirebaseService>();
+builder.Services.AddHostedService<NotificationSchedulerService>();
 
 builder.Services.Configure<JsonOptions>(options =>
 {
@@ -600,7 +604,11 @@ public record CreateReadEventRequest
     public short Rating { get; init; }
 }
 
-public record CreateRepetitionGroup(string Name, List<int> QuoteIds, List<int> NoteIds);
+public record CreateRepetitionGroup(
+    string Name,
+    List<int> QuoteIds,
+    List<int> NoteIds,
+    List<DateTime> ScheduledTimes);
 
 public record UserEvent(long Id, int BookId, string BookName, short Rating, string ImageUrl, DateTime FinishedAt, string? ImageId, string? Memo);
 public record UserStat(long PagesRead, long BooksRead, long QuotesSaved, long NotesSaved, BookCategory[] TopCategories, BookAuthor[] TopAuthors);
@@ -609,4 +617,26 @@ public record BookCategory(int Id, string Name);
 public record BookAuthor(int Id, string Name);
 public record SpaceGroup(int Id, string Name, int IconId, int CardCount);
 public record UserMemoryEvent(long Id, int BookId, string Author, string BookName, short Rating, string ImageUrl, string? StartedAt, string? FinishedAt, string? ImageId, string? Memo);
+
+public class DueNotification
+{
+    public Guid UserId { get; set; }
+    public int GroupId { get; set; }
+    public string GroupName { get; set; } = string.Empty;
+    public DateTime ScheduledTime { get; set; }
+    public int ScheduleId { get; set; } // To mark as sent later
+}
+
+public class RegisterTokenRequest
+{
+    public string Token { get; set; } = string.Empty;
+    public string Platform { get; set; } = "android"; // "ios", "android", "web"
+}
+
+public class ScheduleNotificationRequest
+{
+    public int UserId { get; set; }
+    public int GroupId { get; set; }
+    public List<DateTime> ScheduledTimes { get; set; } = new();
+}
 

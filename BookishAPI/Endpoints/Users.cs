@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MongoDB.Bson;
@@ -144,8 +145,28 @@ public static class Users
         group.MapGet("repetition-groups", GetRepetitionGroups)
             .WithName("Get User's repetition group")
             .WithSummary("Get User's repetition group");
+        
+        group.MapPost("push-token", RegisterToken)
+            .WithName("Register User's push token")
+            .WithSummary("Register User's push token");
             
         return group;
+    }
+    private static async Task<IResult> RegisterToken(ClaimsPrincipal claimsPrincipal,
+        [FromServices]NotificationService notificationService, RegisterTokenRequest request)
+    {
+        var userId = claimsPrincipal.Claims
+            .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+        var parsedUserId = Guid.Parse(userId);
+        
+        await notificationService.RegisterPushTokenAsync(
+            parsedUserId,
+            request.Token,
+            request.Platform.ToLower());
+
+
+        return Results.Ok(new { message = "Token registered successfully" });
     }
     
     private static async Task<IResult> GetRepetitionGroups(ClaimsPrincipal claimsPrincipal, BookAppContext db)
@@ -163,30 +184,47 @@ public static class Users
         return Results.Ok(groups);
     }
     
-    private static async Task<IResult> CreateRepetitionGroup(ClaimsPrincipal claimsPrincipal, BookAppContext db, CreateRepetitionGroup request)
+    private static async Task<IResult> CreateRepetitionGroup(
+        ClaimsPrincipal claimsPrincipal,
+        BookAppContext db,
+        NotificationService notificationService,
+        CreateRepetitionGroup request)
     {
         var userId = claimsPrincipal.Claims
             .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
 
         var parsedUserId = Guid.Parse(userId);
-
-        var random = new Random();
         
-        var iconId = random.Next(1, 40); 
+        await using var transaction = await db.Database.BeginTransactionAsync();
 
-        var group = new SpacedRepetitionGroup()
+        try
         {
-            UserId = parsedUserId,
-            Name = request.Name,
-            Notes = db.Notes.Where(j => request.NoteIds.Contains(j.Id)).ToList(),
-            Quotes = db.Quotes.Where(j => request.QuoteIds.Contains(j.Id)).ToList(),
-            RemindAt = DateTime.UtcNow,
-            IconId = iconId
-        };
+            var random = new Random();
+            
+            var iconId = random.Next(1, 40); 
 
-        await db.SpacedRepetitionGroups.AddAsync(group);
+            var group = new SpacedRepetitionGroup()
+            {
+                UserId = parsedUserId,
+                Name = request.Name,
+                Notes = db.Notes.Where(j => request.NoteIds.Contains(j.Id)).ToList(),
+                Quotes = db.Quotes.Where(j => request.QuoteIds.Contains(j.Id)).ToList(),
+                IconId = iconId
+            };
 
-        await db.SaveChangesAsync();
+            await db.SpacedRepetitionGroups.AddAsync(group);
+            
+            await db.SaveChangesAsync();
+            
+            await notificationService.SaveNotificationSchedulesAsync(parsedUserId, group.Id, request.ScheduledTimes);
+
+            await transaction.CommitAsync();
+        }
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync();
+            return Results.StatusCode(500);
+        }
         
         return Results.Ok();
     }

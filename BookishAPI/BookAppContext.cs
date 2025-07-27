@@ -170,7 +170,9 @@ public class SpacedRepetitionGroup
     public int IconId { get; set; }
     public List<Note> Notes { get; set; }
     public List<Quote> Quotes { get; set; }
-    public DateTime RemindAt { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public bool IsActive { get; set; }
+    public List<UserGroupNotificationSchedule> Schedules { get; set; }
 }
 
 public class ReadingSession
@@ -244,6 +246,42 @@ public class ReadEvent
     public string? Memo { get; set; } //short memo associated with the event
 }
 
+public class UserPushToken
+{
+    public int Id { get; set; }
+    public Guid UserId { get; set; }
+    public string DeviceToken { get; set; } = string.Empty;
+    public string Platform { get; set; } = string.Empty; // 'ios', 'android', 'web'
+    public bool IsActive { get; set; } = true;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class NotificationLog
+{
+    public int Id { get; set; }
+    public Guid UserId { get; set; }
+    public int GroupId { get; set; }
+    public DateTime SentAt { get; set; }
+    public string Status { get; set; } = "sent"; // 'sent', 'failed', 'delivered'
+    public string? FirebaseResponse { get; set; }
+}
+
+public class UserGroupNotificationSchedule
+{
+    public int Id { get; set; }
+    public Guid UserId { get; set; }
+    public int GroupId { get; set; }
+    public int CurrentIntervalDays { get; set; }
+    public DateTime ScheduledTime { get; set; }
+    public bool IsSent { get; set; } = false;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+
+    // Navigation property
+    public SpacedRepetitionGroup Group { get; set; } = null!;
+}
+
 
 // DbContext
 
@@ -266,6 +304,9 @@ public class BookAppContext : DbContext
     public DbSet<NoteCollection> NoteCollections { get; set; }
     public DbSet<QuoteCollection> QuoteCollections { get; set; }
     public DbSet<ReadEvent> ReadEvents { get; set; }
+    public DbSet<UserPushToken> UserPushTokens { get; set; }
+    public DbSet<UserGroupNotificationSchedule> UserGroupNotificationSchedules { get; set; }
+    public DbSet<NotificationLog> NotificationLogs { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
