@@ -96,7 +96,7 @@ public class NotificationSchedulerService : BackgroundService
         };
 
         // Send to all user devices
-        var results = await firebaseService.SendToSingleTokenAsync(tokens.Select(t => t.DeviceToken).First(), payload);
+        var results = await firebaseService.SendToMultipleTokensAsync(tokens.Select(t => t.DeviceToken).ToList(), payload);
 
         // Log the notification
         //await notificationRepo.LogNotificationAsync(notification.UserId, notification.GroupId, results);
