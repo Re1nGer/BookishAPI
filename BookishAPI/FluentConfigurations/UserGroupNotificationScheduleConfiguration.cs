@@ -8,7 +8,6 @@ public class UserGroupNotificationScheduleConfiguration : IEntityTypeConfigurati
     public void Configure(EntityTypeBuilder<UserGroupNotificationSchedule> entity)
     {
         entity.HasKey(e => e.Id);
-        entity.HasIndex(e => new { e.UserId, e.GroupId }).IsUnique();
         entity.HasIndex(e => e.ScheduledTime);
             
         // Foreign key to SpacedRepetitionGroup
