@@ -172,6 +172,7 @@ public class SpacedRepetitionGroup
     public List<Quote> Quotes { get; set; }
     public DateTime CreatedAt { get; set; }
     public bool IsActive { get; set; }
+    public byte ColorId { get; set; }
     public List<UserGroupNotificationSchedule> Schedules { get; set; }
 }
 

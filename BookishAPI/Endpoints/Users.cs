@@ -179,7 +179,13 @@ public static class Users
         var groups = await db.SpacedRepetitionGroups
             .Where(x => x.UserId == parsedUserId)
             .OrderByDescending(x => x.CreatedAt)
-            .Select(x => new SpaceGroup(x.Id, x.Name, x.IconId, x.Notes.Count + x.Quotes.Count))
+            .Select(x =>
+                new SpaceGroup(
+                    x.Id,
+                    x.Name,
+                    x.IconId,
+                    x.Notes.Count + x.Quotes.Count,
+                    x.ColorId))
             .ToListAsync();
         
         return Results.Ok(groups);
@@ -202,7 +208,9 @@ public static class Users
         {
             var random = new Random();
             
-            var iconId = random.Next(1, 40); 
+            var iconId = random.Next(1, 40);
+
+            var colorId = random.Next(0, 7);
 
             var group = new SpacedRepetitionGroup()
             {
@@ -211,7 +219,8 @@ public static class Users
                 Notes = db.Notes.Where(j => request.NoteIds.Contains(j.Id)).ToList(),
                 Quotes = db.Quotes.Where(j => request.QuoteIds.Contains(j.Id)).ToList(),
                 IconId = iconId,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                ColorId = (byte)colorId
             };
 
             await db.SpacedRepetitionGroups.AddAsync(group);
@@ -515,7 +524,8 @@ public static class Users
                     item.Content,
                     item.Type.Name,
                     item.Type.Color,
-                    item.Type.Icon, item.CreatedAt))
+                    item.Type.Icon,
+                    item.CreatedAt))
                 .ToList());
 
         return Results.Ok(notes);
