@@ -615,7 +615,7 @@ public record UserStat(long PagesRead, long BooksRead, long QuotesSaved, long No
 
 public record BookCategory(int Id, string Name);
 public record BookAuthor(int Id, string Name);
-public record SpaceGroup(int Id, string Name, int IconId, int CardCount);
+public record SpaceGroup(int Id, string Name, int IconId, int CardCount, byte ColorId);
 public record UserMemoryEvent(long Id, int BookId, string Author, string BookName, short Rating, string ImageUrl, string? StartedAt, string? FinishedAt, string? ImageId, string? Memo);
 
 public class DueNotification
