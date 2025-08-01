@@ -178,6 +178,7 @@ public static class Users
 
         var groups = await db.SpacedRepetitionGroups
             .Where(x => x.UserId == parsedUserId)
+            .OrderByDescending(x => x.CreatedAt)
             .Select(x => new SpaceGroup(x.Id, x.Name, x.IconId, x.Notes.Count + x.Quotes.Count))
             .ToListAsync();
         
@@ -209,7 +210,8 @@ public static class Users
                 Name = request.Name,
                 Notes = db.Notes.Where(j => request.NoteIds.Contains(j.Id)).ToList(),
                 Quotes = db.Quotes.Where(j => request.QuoteIds.Contains(j.Id)).ToList(),
-                IconId = iconId
+                IconId = iconId,
+                CreatedAt = DateTime.UtcNow
             };
 
             await db.SpacedRepetitionGroups.AddAsync(group);
