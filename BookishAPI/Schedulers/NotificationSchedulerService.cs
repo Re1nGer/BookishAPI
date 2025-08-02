@@ -90,8 +90,9 @@ public class NotificationSchedulerService : BackgroundService
             Data = new Dictionary<string, string>
             {
                 { "groupId", notification.GroupId.ToString() },
-                { "type", "spaced_repetition" },
-                { "userId", notification.UserId.ToString() }
+                { "userId", notification.UserId.ToString() },
+                { "url", $"test-scheme://revise?groupId={notification.GroupId}&groupName={notification.GroupName}"},
+                { "type", "deep_link" }
             }
         };
 
