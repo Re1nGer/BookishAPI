@@ -520,7 +520,9 @@ public static class Users
             .ThenInclude(item => item.Type)
             .Where(item => item.UserId == parsedUserId)
             .SelectMany(book => book.Notes
-                .Select(item => new BookNote(item.Id, book.Title,
+                .Select(item => new BookNote(
+                    item.Id,
+                    book.Title,
                     item.Content,
                     item.Type.Name,
                     item.Type.Color,
