@@ -145,12 +145,49 @@ public static class Users
         group.MapGet("repetition-groups", GetRepetitionGroups)
             .WithName("Get User's repetition group")
             .WithSummary("Get User's repetition group");
+            
+        group.MapGet("repetition-group/{groupId}", GetRepetitionGroupCards)
+            .WithName("Get User's repetition group cards")
+            .WithSummary("Get User's repetition group cards");
         
         group.MapPost("push-token", RegisterToken)
             .WithName("Register User's push token")
             .WithSummary("Register User's push token");
             
         return group;
+    }
+    private static async Task<IResult> GetRepetitionGroupCards(ClaimsPrincipal claimsPrincipal, BookAppContext db, int groupId)
+    {
+        var userId = claimsPrincipal.Claims
+            .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+        var parsedUserId = Guid.Parse(userId);
+
+        var group = await db.SpacedRepetitionGroups
+            .Include(j => j.Notes)
+            .Include(j => j.Quotes)
+            .FirstOrDefaultAsync(j => j.Id == groupId && j.UserId == parsedUserId);
+
+        if (group is null)
+        {
+            return Results.NotFound("Repetition Group is null");
+        }
+
+        var notes = db.Notes.Where(j => group.Notes.Contains(j));
+
+        var quotes = db.Quotes.Where(j => group.Quotes.Contains(j));
+
+        var notesDto = notes.Select(j => new QuoteDto(j.Id, j.Book.Title, j.Content));
+
+        var quotesDto = quotes.Select(j => new QuoteDto(j.Id, j.Book.Title, j.Content));
+
+        var notesList = await notesDto.ToListAsync();
+
+        var quotesList = await quotesDto.ToListAsync();
+        
+        notesList.AddRange(quotesList);
+
+        return Results.Ok(notesList);
     }
     private static async Task<IResult> RegisterToken(ClaimsPrincipal claimsPrincipal,
         [FromServices]NotificationService notificationService, RegisterTokenRequest request)
