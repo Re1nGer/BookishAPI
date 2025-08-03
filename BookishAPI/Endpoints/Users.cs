@@ -277,24 +277,33 @@ public static class Users
         return Results.Ok();
     }
     
-    private static async Task<IResult> GetUserStats(ClaimsPrincipal claimsPrincipal, BookAppContext db, [FromQuery] DateTime? from, DateTime? to)
+    private static async Task<IResult> GetUserStats(
+        ClaimsPrincipal claimsPrincipal,
+        BookAppContext db,
+        [FromQuery] DateTime? from,
+        DateTime? to)
     {
         var userId = claimsPrincipal.Claims
             .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
         
         var parsedUserId = Guid.Parse(userId);
 
-        var pagesRead = await db.Books
+        var readStats = await db.ReadStats
             .Where(j => j.UserId == parsedUserId)
-            .Where(j => j.Status == BookStatus.Finished)
-            .Where(j => from == null || j.StartedAt >= from.Value.Date)
-            .Where(j => to == null || j.StartedAt <= to.Value.Date)
-            .SumAsync(j => j.TotalPages);
+            .Where(j => from == null || j.ReadAt.Date >= from.Value.Date)
+            .Where(j => to == null || j.ReadAt.Date <= to.Value.Date)
+            .GroupBy(j => j.ReadAt.Date)
+            .Select(g => new Stat
+            {
+                Day = g.Key.DayOfWeek.ToString(),
+                PagesRead = g.Sum(a => a.PageNumber) 
+            })
+            .ToListAsync();
 
         var booksRead = await db.Books
             .Where(j => j.UserId == parsedUserId)
-            .Where(j => from == null || j.StartedAt >= from.Value.Date)
-            .Where(j => to == null || j.StartedAt <= to.Value.Date)
+            .Where(j => from == null || j.FinishedAt >= from.Value)
+            .Where(j => to == null || j.FinishedAt <= to.Value)
             .Where(j => j.Status == BookStatus.Finished)
             .LongCountAsync();
 
@@ -312,8 +321,8 @@ public static class Users
 
         var topCategoryNames = await db.Books
             .Where(j => j.UserId == parsedUserId)
-            .Where(j => from == null || j.StartedAt >= from.Value.Date)
-            .Where(j => to == null || j.StartedAt <= to.Value.Date)
+            .Where(j => from == null || j.UpdatedAt >= from.Value)
+            .Where(j => to == null || j.UpdatedAt <= to.Value)
             .SelectMany(j => j.Genres)
             .GroupBy(g => g.Name)
             .OrderByDescending(g => g.Count())
@@ -323,8 +332,6 @@ public static class Users
 
         var topCategories = await db.Books
             .Where(j => j.UserId == parsedUserId)
-            .Where(j => from == null || j.StartedAt >= from.Value.Date)
-            .Where(j => to == null || j.StartedAt <= to.Value.Date)
             .Where(j => j.Genres.Any(g => topCategoryNames.Contains(g.Name)))
             .OrderByDescending(j => j.Author)
             .Take(2)
@@ -333,26 +340,18 @@ public static class Users
 
         var topAuthors = await db.Books
             .Where(j => j.UserId == parsedUserId)
-            .Where(j => from == null || j.StartedAt >= from.Value.Date)
-            .Where(j => to == null || j.StartedAt <= to.Value.Date)
+            .Where(j => from == null || j.UpdatedAt >= from.Value)
+            .Where(j => to == null || j.UpdatedAt <= to.Value)
             .GroupBy(j => j.Author)
             .OrderByDescending(g => g.Count())
             .Take(2)
             .Select(g => new BookAuthor(g.First().Id, g.Key))
             .ToArrayAsync();
 
-
-        var pagesWithCurrentBooks = await db.Books
-            .Where(j => j.UserId == parsedUserId)
-            .Where(j => from == null || j.StartedAt >= from.Value.Date)
-            .Where(j => to == null || j.StartedAt <= to.Value.Date)
-            .Where(j => j.Status == BookStatus.Reading
-                        || j.Status == BookStatus.GaveUp
-                        || j.Status == BookStatus.Paused)
-            .SumAsync(j => j.CurrentPage);
         
         return Results.Ok(new UserStat(
-            pagesRead + pagesWithCurrentBooks,
+            readStats,
+            0,
             booksRead,
             quotesSaved,
             notesSaved,
@@ -765,7 +764,11 @@ public static class Users
         return Results.Created($"/collections/{collection.Id}", collection);
         
     }
-    private static async Task<IResult> UpdateBookCurrentReadPage(ClaimsPrincipal claimsPrincipal, int id, BookCurrentPageUpdateRequest request, BookAppContext db)
+    private static async Task<IResult> UpdateBookCurrentReadPage(
+        ClaimsPrincipal claimsPrincipal,
+        int id,
+        BookCurrentPageUpdateRequest request,
+        BookAppContext db)
     {
         var userId = claimsPrincipal.Claims
             .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
@@ -784,6 +787,16 @@ public static class Users
         {
             return Results.BadRequest(new { Error = "Page is greater than total pages in the book" });
         }
+
+        var bookStat = new ReadStat
+        {
+            ReadAt = DateTime.UtcNow,
+            PageNumber = request.Page - book.CurrentPage,
+            BookId = id,
+            UserId = parsedUserId
+        };
+
+        await db.ReadStats.AddAsync(bookStat);
 
         book.CurrentPage = request.Page;
         
@@ -891,7 +904,6 @@ public static class Users
         {
             case BookStatus.Finished:
                 book.FinishedAt = DateTime.UtcNow;
-                
                 break;
             case BookStatus.ToRead:
                 book.FinishedAt = null;
@@ -903,7 +915,8 @@ public static class Users
                 break;
         }
 
-        db.Books.Update(book);
+        book.UpdatedAt = DateTime.UtcNow;
+        //db.Books.Update(book);
 
         await db.SaveChangesAsync();
         

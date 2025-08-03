@@ -33,6 +33,7 @@ public class User
     public List<VerificationCode> VerificationCodes { get; set; }
     public UserSettings Settings { get; set; }
     public List<ReadEvent> ReadEvents { get; set; }
+    public List<ReadStat> ReadStats { get; set; }
 }
 
 public class BookCollection
@@ -92,6 +93,7 @@ public class Book
     public List<Quote> Quotes { get; set; }
     public List<ReadingSession> ReadingSessions { get; set; }
     public ReadEvent ReadEvent { get; set; }
+    public List<ReadStat> ReadStats { get; set; }
     public int CurrentPage { get; set; }
     public int TotalPages { get; set; }
 }
@@ -187,6 +189,17 @@ public class ReadingSession
     public int EndPage { get; set; }
     public TimeSpan Duration { get; set; }
     public SessionStatus Status { get; set; }
+}
+
+public class ReadStat
+{
+    public int Id { get; set; }
+    public int BookId { get; set; }
+    public Guid UserId { get; set; }
+    public User User { get; set; }
+    public Book Book { get; set; }
+    public DateTime ReadAt { get; set; }
+    public int PageNumber { get; set; }
 }
 
 public enum SessionStatus
@@ -308,6 +321,7 @@ public class BookAppContext : DbContext
     public DbSet<UserPushToken> UserPushTokens { get; set; }
     public DbSet<UserGroupNotificationSchedule> UserGroupNotificationSchedules { get; set; }
     public DbSet<NotificationLog> NotificationLogs { get; set; }
+    public DbSet<ReadStat> ReadStats { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

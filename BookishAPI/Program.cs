@@ -30,7 +30,7 @@ builder.Services.AddScoped<CategoryMapper>();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<FirebaseService>();
-builder.Services.AddHostedService<NotificationSchedulerService>();
+//builder.Services.AddHostedService<NotificationSchedulerService>();
 
 builder.Services.Configure<JsonOptions>(options =>
 {
@@ -611,12 +611,25 @@ public record CreateRepetitionGroup(
     List<DateTime> ScheduledTimes);
 
 public record UserEvent(long Id, int BookId, string BookName, short Rating, string ImageUrl, DateTime FinishedAt, string? ImageId, string? Memo);
-public record UserStat(long PagesRead, long BooksRead, long QuotesSaved, long NotesSaved, BookCategory[] TopCategories, BookAuthor[] TopAuthors);
+public record UserStat(
+    List<Stat> ReadStats,
+    long PagesRead,
+    long BooksRead,
+    long QuotesSaved,
+    long NotesSaved,
+    BookCategory[] TopCategories,
+    BookAuthor[] TopAuthors);
 
 public record BookCategory(int Id, string Name);
 public record BookAuthor(int Id, string Name);
 public record SpaceGroup(int Id, string Name, int IconId, int CardCount, byte ColorId);
 public record UserMemoryEvent(long Id, int BookId, string Author, string BookName, short Rating, string ImageUrl, string? StartedAt, string? FinishedAt, string? ImageId, string? Memo);
+
+public class Stat
+{
+    public string Day { get; set; }
+    public long PagesRead { get; set; }
+}
 
 public class DueNotification
 {
