@@ -308,14 +308,14 @@ public static class Users
             .LongCountAsync();
 
         var notesSaved = await db.Notes
-            .Where(j => from == null || j.CreatedAt >= from.Value.Date)
-            .Where(j => to == null || j.CreatedAt <= to.Value.Date)
+            .Where(j => from == null || j.CreatedAt >= from.Value)
+            .Where(j => to == null || j.CreatedAt <= to.Value)
             .Where(j => j.Book.UserId == parsedUserId)
             .LongCountAsync();
 
         var quotesSaved = await db.Quotes
-            .Where(j => from == null || j.CreatedAt >= from.Value.Date)
-            .Where(j => to == null || j.CreatedAt <= to.Value.Date)
+            .Where(j => from == null || j.CreatedAt >= from.Value)
+            .Where(j => to == null || j.CreatedAt <= to.Value)
             .Where(j => j.Book.UserId == parsedUserId)
             .LongCountAsync();
 
