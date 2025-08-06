@@ -247,7 +247,7 @@ public static class Users
             
             var iconId = random.Next(1, 40);
 
-            var colorId = random.Next(0, 7);
+            var colorId = random.Next(0, 3);
 
             var group = new SpacedRepetitionGroup()
             {
