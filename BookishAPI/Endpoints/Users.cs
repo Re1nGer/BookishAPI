@@ -306,6 +306,18 @@ public static class Users
             .Where(j => to == null || j.FinishedAt <= to.Value)
             .Where(j => j.Status == BookStatus.Finished)
             .LongCountAsync();
+        
+        var bookReadStats = await db.Books
+            .Where(j => j.UserId == parsedUserId)
+            .Where(j => from == null || j.FinishedAt >= from.Value)
+            .Where(j => to == null || j.FinishedAt <= to.Value)
+            .Where(j => j.Status == BookStatus.Finished)
+            .GroupBy(j => j.FinishedAt)
+            .Select(g => new BookReadStat
+            {
+                Day = g.Key!.Value.DayOfWeek.ToString()
+            })
+            .ToListAsync();
 
         var notesSaved = await db.Notes
             .Where(j => from == null || j.CreatedAt >= from.Value)
@@ -351,7 +363,7 @@ public static class Users
         
         return Results.Ok(new UserStat(
             readStats,
-            0,
+            bookReadStats,
             booksRead,
             quotesSaved,
             notesSaved,

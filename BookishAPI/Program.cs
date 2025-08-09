@@ -613,7 +613,7 @@ public record CreateRepetitionGroup(
 public record UserEvent(long Id, int BookId, string BookName, short Rating, string ImageUrl, DateTime FinishedAt, string? ImageId, string? Memo);
 public record UserStat(
     List<Stat> ReadStats,
-    long PagesRead,
+    List<BookReadStat> BookReadStats,
     long BooksRead,
     long QuotesSaved,
     long NotesSaved,
@@ -624,6 +624,11 @@ public record BookCategory(int Id, string Name);
 public record BookAuthor(int Id, string Name);
 public record SpaceGroup(int Id, string Name, int IconId, int CardCount, byte ColorId);
 public record UserMemoryEvent(long Id, int BookId, string Author, string BookName, short Rating, string ImageUrl, string? StartedAt, string? FinishedAt, string? ImageId, string? Memo);
+
+public class BookReadStat
+{
+    public string Day { get; set; }
+}
 
 public class Stat
 {
