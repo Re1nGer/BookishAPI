@@ -614,7 +614,6 @@ public record UserEvent(long Id, int BookId, string BookName, short Rating, stri
 public record UserStat(
     List<Stat> ReadStats,
     List<BookReadStat> BookReadStats,
-    long BooksRead,
     long QuotesSaved,
     long NotesSaved,
     BookCategory[] TopCategories,

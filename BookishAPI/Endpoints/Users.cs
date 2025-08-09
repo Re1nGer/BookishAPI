@@ -299,13 +299,6 @@ public static class Users
                 PagesRead = g.Sum(a => a.PageNumber) 
             })
             .ToListAsync();
-
-        var booksRead = await db.Books
-            .Where(j => j.UserId == parsedUserId)
-            .Where(j => from == null || j.FinishedAt >= from.Value)
-            .Where(j => to == null || j.FinishedAt <= to.Value)
-            .Where(j => j.Status == BookStatus.Finished)
-            .LongCountAsync();
         
         var bookReadStats = await db.Books
             .Where(j => j.UserId == parsedUserId)
@@ -364,7 +357,6 @@ public static class Users
         return Results.Ok(new UserStat(
             readStats,
             bookReadStats,
-            booksRead,
             quotesSaved,
             notesSaved,
             topCategories,
