@@ -116,6 +116,8 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+await app.SeedDataAsync();
+
 app.UseAuthentication();
 
 app.UseAuthorization();

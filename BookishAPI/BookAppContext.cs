@@ -347,6 +347,9 @@ public class BookAppContext : DbContext
     public DbSet<UserGroupNotificationSchedule> UserGroupNotificationSchedules { get; set; }
     public DbSet<NotificationLog> NotificationLogs { get; set; }
     public DbSet<ReadStat> ReadStats { get; set; }
+    public DbSet<InterestArea> InterestAreas { get; set; }
+    public DbSet<SelectedBook> SelectedBooks { get; set; }
+    public DbSet<ReadingPurpose> ReadingPurposes { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
