@@ -34,6 +34,31 @@ public class User
     public UserSettings Settings { get; set; }
     public List<ReadEvent> ReadEvents { get; set; }
     public List<ReadStat> ReadStats { get; set; }
+    public List<InterestArea>? InterestAreas { get; set; }
+    public List<SelectedBook>? SelectedBooks { get; set; }
+    public List<ReadingPurpose>? ReadingPurposes { get; set; }
+}
+
+public class InterestArea
+{
+    public int Id { get; set; }
+    public string Name { get; set; }
+    public List<User> Users { get; set; }
+}
+
+public class SelectedBook
+{
+    public int Id { get; set; }
+    public string Name { get; set; }
+    public string ImageUrl { get; set; }
+    public List<User> Users { get; set; }
+}
+
+public class ReadingPurpose
+{
+    public int Id { get; set; }
+    public string Name { get; set; }
+    public List<User> Users { get; set; }
 }
 
 public class BookCollection

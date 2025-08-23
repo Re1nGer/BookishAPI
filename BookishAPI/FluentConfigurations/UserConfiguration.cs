@@ -64,5 +64,14 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .WithOne(u => u.User)
             .HasForeignKey(item => item.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(u => u.InterestAreas)
+            .WithMany(u => u.Users);
+        
+        builder.HasMany(u => u.SelectedBooks)
+            .WithMany(u => u.Users);
+        
+        builder.HasMany(u => u.ReadingPurposes)
+            .WithMany(u => u.Users);
     }
 }
