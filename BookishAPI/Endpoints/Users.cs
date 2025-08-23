@@ -153,9 +153,21 @@ public static class Users
         group.MapPost("push-token", RegisterToken)
             .WithName("Register User's push token")
             .WithSummary("Register User's push token");
+        
+        group.MapGet("interest-areas", GetInterestAreas)
+            .WithName("Get User Interest Areas")
+            .WithSummary("Get User Interest Areas");
             
         return group;
     }
+    
+    private static async Task<IResult> GetInterestAreas(
+        BookAppContext db)
+    {
+        var interestAreas = await db.InterestAreas.ToListAsync();
+        return Results.Ok(interestAreas);
+    }
+    
     private static async Task<IResult> GetRepetitionGroupCards(ClaimsPrincipal claimsPrincipal, BookAppContext db, int groupId)
     {
         var userId = claimsPrincipal.Claims
