@@ -161,8 +161,19 @@ public static class Users
         group.MapGet("reading-purposes", GetReadingPurposes)
             .WithName("Get User Reading Purposes")
             .WithSummary("Get User Reading Purposes");
+        
+        group.MapGet("reading-purposes", GetInterestedBooks)
+            .WithName("Get User Interested Books")
+            .WithSummary("Get User Interested Books");
             
         return group;
+    }
+    
+    private static async Task<IResult> GetInterestedBooks(
+        BookAppContext db)
+    {
+        var readingPurposes = await db.SelectedBooks.ToListAsync();
+        return Results.Ok(readingPurposes);
     }
     
     private static async Task<IResult> GetReadingPurposes(
