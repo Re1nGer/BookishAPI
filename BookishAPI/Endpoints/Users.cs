@@ -162,7 +162,7 @@ public static class Users
             .WithName("Get User Reading Purposes")
             .WithSummary("Get User Reading Purposes");
         
-        group.MapGet("reading-purposes", GetInterestedBooks)
+        group.MapGet("interested-books", GetInterestedBooks)
             .WithName("Get User Interested Books")
             .WithSummary("Get User Interested Books");
             
