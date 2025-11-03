@@ -667,4 +667,8 @@ public class BookScoreCollection
     public int[] BookIds { get; set; }
 }
 
-
+public class UpdateUserPreferencesRequest
+{
+    public List<int> InterestAreaIds { get; set; } = new();
+    public List<int> ReadingPurposeIds { get; set; } = new();
+}

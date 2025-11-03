@@ -170,8 +170,77 @@ public static class Users
             .WithName("Get User recommended Books")
             .WithSummary("Get User recommended Books");
             
+        group.MapPost("preferences", UpdateUserPreferences)
+            .WithName("Update User Book Preferences")
+            .WithSummary("Update User Book Preferences");
+            
         return group;
     }
+private static async Task<IResult> UpdateUserPreferences(
+    ClaimsPrincipal claimsPrincipal,
+    BookAppContext db,
+    UpdateUserPreferencesRequest request)
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+    
+    if (string.IsNullOrEmpty(userId))
+    {
+        return Results.Unauthorized();
+    }
+    
+    var parsedUserId = Guid.Parse(userId);
+    
+    var user = await db.Users
+        .Include(a => a.InterestAreas)
+        .Include(a => a.ReadingPurposes)
+        .FirstOrDefaultAsync(a => a.Id == parsedUserId);
+    
+    if (user == null)
+    {
+        return Results.NotFound("User not found");
+    }
+    
+    // Clear existing preferences
+    user.InterestAreas?.Clear();
+    user.ReadingPurposes?.Clear();
+    
+    // Add interest areas
+    if (request?.InterestAreaIds != null && request.InterestAreaIds.Any())
+    {
+        var interestAreas = await db.InterestAreas
+            .Where(ia => request.InterestAreaIds.Contains(ia.Id))
+            .ToListAsync();
+        
+        foreach (var interestArea in interestAreas)
+        {
+            user.InterestAreas?.Add(interestArea);
+        }
+    }
+    
+    // Add reading purposes
+    if (request?.ReadingPurposeIds != null && request.ReadingPurposeIds.Any())
+    {
+        var readingPurposes = await db.ReadingPurposes
+            .Where(rp => request.ReadingPurposeIds.Contains(rp.Id))
+            .ToListAsync();
+        
+        foreach (var readingPurpose in readingPurposes)
+        {
+            user.ReadingPurposes?.Add(readingPurpose);
+        }
+    }
+    
+    await db.SaveChangesAsync();
+    
+    return Results.Ok(new
+    {
+        message = "User preferences updated successfully",
+        interestAreasCount = user.InterestAreas.Count,
+        readingPurposesCount = user.ReadingPurposes.Count
+    });
+}
+
     
 private static async Task<IResult> GetRecommendedBooksForUser(
     ClaimsPrincipal claimsPrincipal,
