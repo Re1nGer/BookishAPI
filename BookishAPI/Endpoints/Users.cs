@@ -165,9 +165,194 @@ public static class Users
         group.MapGet("interested-books", GetInterestedBooks)
             .WithName("Get User Interested Books")
             .WithSummary("Get User Interested Books");
+        
+        group.MapGet("recommended-books", GetRecommendedBooksForUser)
+            .WithName("Get User recommended Books")
+            .WithSummary("Get User recommended Books");
             
         return group;
     }
+    
+private static async Task<IResult> GetRecommendedBooksForUser(
+    ClaimsPrincipal claimsPrincipal,
+    BookAppContext db)
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+    
+    var parsedUserId = Guid.Parse(userId);
+    
+    var user = await db.Users
+        .Include(a => a.InterestAreas)
+        .Include(a => a.ReadingPurposes)
+        .FirstOrDefaultAsync(a => a.Id == parsedUserId);
+    
+    if (user == null)
+    {
+        return Results.NotFound("User not found");
+    }
+    
+    // Get recommended books based on user's interests and purposes
+    var recommendedBooks = GetBookRecommendationIds(user.InterestAreas, user.ReadingPurposes);
+
+    var selectedBooks = await db.SelectedBooks.ToListAsync();
+    
+    return Results.Ok(selectedBooks.Where(a => recommendedBooks.Contains(a.Id)).ToList());
+}
+
+private static HashSet<int> GetBookRecommendationIds(
+    List<InterestArea> userInterests,
+    List<ReadingPurpose> userPurposes)
+{
+    var userInterestNames = userInterests.Select(i => i.Name.ToLower()).ToHashSet();
+    var userPurposeNames = userPurposes.Select(p => p.Name.ToLower()).ToHashSet();
+    
+    // Define all book collections with their criteria
+    var collections = GetBookCollections();
+    
+    // Score each collection based on matches
+    var matchedCollections = collections
+        .Select(c => new
+        {
+            Collection = c,
+            Score = CalculateMatchScore(c, userInterestNames, userPurposeNames)
+        })
+        .Where(x => x.Score > 0)
+        .OrderByDescending(x => x.Score)
+        .ToList();
+    
+    // Get all unique book IDs from matched collections
+    return matchedCollections
+        .SelectMany(mc => mc.Collection.BookIds)
+        .Distinct()
+        .ToHashSet();
+}
+
+private static int CalculateMatchScore(
+    BookScoreCollection collection,
+    IReadOnlySet<string> userInterests,
+    IReadOnlySet<string> userPurposes)
+{
+    var score = 0;
+    
+    // Check interest matches
+    foreach (var interest in collection.Interests)
+    {
+        if (userInterests.Contains(interest.ToLower()))
+        {
+            score += 2; // Weight interests higher
+        }
+    }
+    
+    // Check purpose matches
+    foreach (var purpose in collection.Purposes)
+    {
+        if (userPurposes.Contains(purpose.ToLower()))
+        {
+            score += 1;
+        }
+    }
+    
+    return score;
+}
+
+private static List<BookScoreCollection> GetBookCollections()
+{
+    return new List<BookScoreCollection>
+    {
+        new ()
+        {
+            Name = "Dopamine Detox Guide",
+            Interests = new[] { "habits", "self-help", "health & wellness" },
+            Purposes = new[] { "healthy lifestyle", "personal growth" },
+            BookIds = new[] { 1, 11, 5, 23, 14, 29 } // Atomic Habits, Deep Work, The Power of Now, Why We Sleep, Can't Hurt Me, Ikigai
+        },
+        new ()
+        {
+            Name = "Top 10 to Know History Inside Out",
+            Interests = new[] { "history", "politics", "non-fiction" },
+            Purposes = new[] { "academic", "professional development" },
+            BookIds = new[] { 2, 20, 12 } // Sapiens, The Art of War, Man's Search for Meaning
+        },
+        new ()
+        {
+            Name = "The Mental Fitness Stack",
+            Interests = new[] { "psychology", "habits", "productivity" },
+            Purposes = new[] { "personal growth", "professional development" },
+            BookIds = new[] { 6, 1, 11, 14, 5, 19 } // Thinking Fast and Slow, Atomic Habits, Deep Work, Can't Hurt Me, The Power of Now, The Subtle Art
+        },
+        new ()
+        {
+            Name = "Creative Mind Unlocked",
+            Interests = new[] { "art", "creativity", "philosophy" },
+            Purposes = new[] { "creativity & imagination" },
+            BookIds = new[] { 27, 22, 5 } // The War of Art, The Artist's Way, The Power of Now
+        },
+        new ()
+        {
+            Name = "Imaginative Realms & Escapes",
+            Interests = new[] { "fantasy", "sci-fi", "fiction" },
+            Purposes = new[] { "entertainment and relaxation", "creativity & imagination" },
+            BookIds = new[] { 17, 7 } // Dune, The Hobbit
+        },
+        new ()
+        {
+            Name = "Stories That Make You Empathize",
+            Interests = new[] { "fiction", "romance", "memoir" },
+            Purposes = new[] { "social & connection" },
+            BookIds = new[] { 8, 15, 9 } // To Kill a Mockingbird, Educated, Becoming
+        },
+        new ()
+        {
+            Name = "Life Lessons from Real Lives",
+            Interests = new[] { "memoir", "biography", "self-help" },
+            Purposes = new[] { "inspiration & motivation" },
+            BookIds = new[] { 12, 9, 15, 14, 13 } // Man's Search for Meaning, Becoming, Educated, Can't Hurt Me, Steve Jobs
+        },
+        new ()
+        {
+            Name = "The Builder's Toolkit",
+            Interests = new[] { "business", "productivity", "economics" },
+            Purposes = new[] { "professional development" },
+            BookIds = new[] { 16, 11, 6, 1, 18, 24 } // The 4-Hour Workweek, Deep Work, Thinking Fast and Slow, Atomic Habits, Outliers, Grit
+        },
+        new ()
+        {
+            Name = "Scientific Curiosity Pack",
+            Interests = new[] { "biology", "science", "philosophy" },
+            Purposes = new[] { "academic", "personal growth" },
+            BookIds = new[] { 2, 6 } // Sapiens, Thinking Fast and Slow
+        },
+        new ()
+        {
+            Name = "Brains and Biases",
+            Interests = new[] { "psychology", "philosophy", "self-help" },
+            Purposes = new[] { "academic", "personal growth" },
+            BookIds = new[] { 6, 1 } // Thinking Fast and Slow, Atomic Habits (The Power of Habit reference)
+        },
+        new ()
+        {
+            Name = "Mystery & Page-turners",
+            Interests = new[] { "detective", "mystery", "fiction", "thriller" },
+            Purposes = new[] { "entertainment and relaxation", "creativity & imagination" },
+            BookIds = new int[] { } // None of the selected books match this collection
+        },
+        new ()
+        {
+            Name = "Classics You Shouldn't Miss",
+            Interests = new[] { "fiction", "literature", "history" },
+            Purposes = new[] { "educational", "inspiration" },
+            BookIds = new[] { 3, 8 } // 1984, To Kill a Mockingbird
+        },
+        new ()
+        {
+            Name = "Epic Journeys & Adventure",
+            Interests = new[] { "adventure", "travel", "memoir" },
+            Purposes = new[] { "entertainment and relaxation", "creativity & imagination" },
+            BookIds = new[] { 30, 9, 15 } // The Road, Becoming, Educated (The Glass Castle reference)
+        }
+    };
+}
     
     private static async Task<IResult> GetInterestedBooks(
         BookAppContext db)

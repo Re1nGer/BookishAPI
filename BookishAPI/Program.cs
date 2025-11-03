@@ -659,3 +659,12 @@ public class ScheduleNotificationRequest
     public List<DateTime> ScheduledTimes { get; set; } = new();
 }
 
+public class BookScoreCollection
+{
+    public string Name { get; set; }
+    public string[] Interests { get; set; }
+    public string[] Purposes { get; set; }
+    public int[] BookIds { get; set; }
+}
+
+
