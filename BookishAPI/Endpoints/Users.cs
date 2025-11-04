@@ -194,6 +194,7 @@ private static async Task<IResult> UpdateUserPreferences(
     var user = await db.Users
         .Include(a => a.InterestAreas)
         .Include(a => a.ReadingPurposes)
+        .Include(a => a.SelectedBooks)
         .FirstOrDefaultAsync(a => a.Id == parsedUserId);
     
     if (user == null)
@@ -254,175 +255,235 @@ private static async Task<IResult> GetRecommendedBooksForUser(
     var user = await db.Users
         .Include(a => a.InterestAreas)
         .Include(a => a.ReadingPurposes)
+        .Include(a => a.SelectedBooks)  // Include selected books
         .FirstOrDefaultAsync(a => a.Id == parsedUserId);
     
     if (user == null)
     {
         return Results.NotFound("User not found");
     }
-    
-    // Get recommended books based on user's interests and purposes
-    var recommendedBooks = GetBookRecommendationIds(user.InterestAreas, user.ReadingPurposes);
 
-    var selectedBooks = await db.SelectedBooks.ToListAsync();
+    var allSelectedBooks = await db.SelectedBooks.ToListAsync();
     
-    return Results.Ok(selectedBooks.Where(a => recommendedBooks.Contains(a.Id)).ToList());
+    // Get recommended books based on user's interests, purposes, and selected books
+    var recommendedBooks = GetBookRecommendationsFromWeightMatrix(
+        user.InterestAreas, 
+        user.ReadingPurposes,
+        user.SelectedBooks,
+        allSelectedBooks);
+    
+    return Results.Ok(recommendedBooks);
 }
 
-private static HashSet<int> GetBookRecommendationIds(
-    List<InterestArea> userInterests,
-    List<ReadingPurpose> userPurposes)
+private static List<SelectedBook> GetBookRecommendationsFromWeightMatrix(
+    List<InterestArea>? userInterests,
+    List<ReadingPurpose>? userPurposes,
+    List<SelectedBook>? userSelectedBooks,
+    List<SelectedBook> allBooks)
 {
-    var userInterestNames = userInterests.Select(i => i.Name.ToLower()).ToHashSet();
-    var userPurposeNames = userPurposes.Select(p => p.Name.ToLower()).ToHashSet();
+    // Initialize weight matrix
+    var weightMatrix = GetWeightMatrix();
     
-    // Define all book collections with their criteria
-    var collections = GetBookCollections();
+    // Calculate collection scores
+    var collectionScores = new Dictionary<string, int>();
+    var collections = new[]
+    {
+        "Dopamine Detox Guide", "The Human Odyssey", "Rebel Thinkers", 
+        "Spiritual Explorers", "Creativity Unlocked", "Leaders & Builders",
+        "Mind Gym", "Epic Journeys", "The Mind Hacker", "The Feminine Voice",
+        "Strategic Minds", "Health Reboot", "Philosopher's Path", 
+        "The Innovators", "Stories that Heal", "The Great Classics"
+    };
     
-    // Score each collection based on matches
-    var matchedCollections = collections
-        .Select(c => new
+    foreach (var collection in collections)
+    {
+        collectionScores[collection] = 0;
+    }
+    
+    // Add scores from user interests
+    foreach (var interest in userInterests)
+    {
+        var key = $"Interest:{interest.Name}";
+        if (weightMatrix.ContainsKey(key))
         {
-            Collection = c,
-            Score = CalculateMatchScore(c, userInterestNames, userPurposeNames)
-        })
-        .Where(x => x.Score > 0)
-        .OrderByDescending(x => x.Score)
+            foreach (var collection in collections)
+            {
+                collectionScores[collection] += weightMatrix[key][collection];
+            }
+        }
+    }
+    
+    // Add scores from user purposes
+    foreach (var purpose in userPurposes)
+    {
+        var key = $"Purpose:{purpose.Name}";
+        if (weightMatrix.ContainsKey(key))
+        {
+            foreach (var collection in collections)
+            {
+                collectionScores[collection] += weightMatrix[key][collection];
+            }
+        }
+    }
+    
+    // Add scores from user's selected books
+    foreach (var selectedBook in userSelectedBooks)
+    {
+        var bookName = BookRecommendationMapper.GetBookNameForMatrix(selectedBook.Name);
+        var key = $"Book:{bookName}";
+        
+        if (weightMatrix.ContainsKey(key))
+        {
+            foreach (var collection in collections)
+            {
+                // Weight selected books slightly higher to reinforce user preferences
+                collectionScores[collection] += weightMatrix[key][collection] * 2;
+            }
+        }
+    }
+    
+    // Get top collections (those with score > 0)
+    var topCollections = collectionScores
+        .Where(kvp => kvp.Value > 0)
+        .OrderByDescending(kvp => kvp.Value)
+        .Select(kvp => kvp.Key)
         .ToList();
     
-    // Get all unique book IDs from matched collections
-    return matchedCollections
-        .SelectMany(mc => mc.Collection.BookIds)
-        .Distinct()
+    // Calculate score for each book
+    var bookScores = new Dictionary<int, int>();
+    var bookWeights = weightMatrix.Where(kvp => kvp.Key.StartsWith("Book:")).ToList();
+    
+    foreach (var bookEntry in bookWeights)
+    {
+        var bookName = bookEntry.Key.Substring(5); // Remove "Book:" prefix
+        var totalScore = 0;
+        
+        // Calculate total score for this book across user's top collections
+        foreach (var collection in topCollections)
+        {
+            totalScore += bookEntry.Value[collection] * collectionScores[collection];
+        }
+        
+        // If book has a meaningful score, include it
+        if (totalScore > 0)
+        {
+            var bookId = BookRecommendationMapper.GetBookIdByName(bookName);
+            if (bookId.HasValue)
+            {
+                bookScores[bookId.Value] = totalScore;
+            }
+        }
+    }
+    
+    // Exclude books the user has already selected
+    var userSelectedBookIds = userSelectedBooks.Select(b => b.Id).ToHashSet();
+    var recommendedBookIds = bookScores.Keys
+        .Where(id => !userSelectedBookIds.Contains(id))
         .ToHashSet();
+    
+    // Return the selected books, ordered by score
+    return allBooks
+        .Where(b => recommendedBookIds.Contains(b.Id))
+        .OrderByDescending(b => bookScores.GetValueOrDefault(b.Id, 0))
+        .ToList();
 }
 
-private static int CalculateMatchScore(
-    BookScoreCollection collection,
-    IReadOnlySet<string> userInterests,
-    IReadOnlySet<string> userPurposes)
+private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
 {
-    var score = 0;
+    var matrix = new Dictionary<string, Dictionary<string, int>>();
     
-    // Check interest matches
-    foreach (var interest in collection.Interests)
+    // Helper to add a row
+    void AddRow(string category, string answer, params int[] weights)
     {
-        if (userInterests.Contains(interest.ToLower()))
+        var key = $"{category}:{answer}";
+        var collections = new[]
         {
-            score += 2; // Weight interests higher
+            "Dopamine Detox Guide", "The Human Odyssey", "Rebel Thinkers", 
+            "Spiritual Explorers", "Creativity Unlocked", "Leaders & Builders",
+            "Mind Gym", "Epic Journeys", "The Mind Hacker", "The Feminine Voice",
+            "Strategic Minds", "Health Reboot", "Philosopher's Path", 
+            "The Innovators", "Stories that Heal", "The Great Classics"
+        };
+        
+        matrix[key] = new Dictionary<string, int>();
+        for (int i = 0; i < collections.Length && i < weights.Length; i++)
+        {
+            matrix[key][collections[i]] = weights[i];
         }
     }
     
-    // Check purpose matches
-    foreach (var purpose in collection.Purposes)
-    {
-        if (userPurposes.Contains(purpose.ToLower()))
-        {
-            score += 1;
-        }
-    }
+    // Interests
+    AddRow("Interest", "Fiction", 0,3,2,1,1,0,0,3,0,1,0,0,0,0,1,3);
+    AddRow("Interest", "Non-Fiction", 0,3,0,0,0,1,3,0,0,0,0,0,0,1,2,0);
+    AddRow("Interest", "Fantasy", 0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,2);
+    AddRow("Interest", "Mystery", 0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,2);
+    AddRow("Interest", "Detective", 0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,2);
+    AddRow("Interest", "Romance", 0,0,0,0,0,0,0,2,0,3,0,0,0,0,0,2);
+    AddRow("Interest", "Biography", 0,2,0,0,0,0,0,0,0,0,0,0,0,0,2,1);
+    AddRow("Interest", "History", 0,3,0,0,0,0,0,0,0,0,2,0,0,0,0,2);
+    AddRow("Interest", "Psychology", 0,1,0,0,0,0,3,0,2,0,0,0,0,0,2,0);
+    AddRow("Interest", "Philosophy", 0,1,1,1,0,0,0,0,0,0,0,0,3,0,0,2);
+    AddRow("Interest", "Science", 0,2,0,0,0,0,1,0,0,0,0,0,0,0,0,2);
+    AddRow("Interest", "Biology", 0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,2);
+    AddRow("Interest", "Nature", 0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,2);
+    AddRow("Interest", "Technology", 0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0);
+    AddRow("Interest", "Art", 0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,1);
+    AddRow("Interest", "Creativity", 0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,1);
+    AddRow("Interest", "Habits", 3,0,0,0,0,0,2,0,2,0,0,0,0,0,0,0);
+    AddRow("Interest", "Productivity", 3,0,0,0,0,0,2,0,2,0,0,0,0,0,0,0);
+    AddRow("Interest", "Business", 0,0,0,0,0,3,0,0,0,0,0,0,0,2,0,0);
+    AddRow("Interest", "Health & Fitness", 2,0,0,0,0,0,0,0,0,0,0,3,0,0,0,0);
+    AddRow("Interest", "Spirituality", 0,0,0,3,0,0,0,0,0,0,0,0,2,0,0,0);
+    AddRow("Interest", "Politics", 0,0,3,0,0,0,0,0,0,0,2,0,0,0,0,2);
+    AddRow("Interest", "Memoir", 0,2,0,0,0,0,0,0,0,0,0,0,0,0,2,1);
+    AddRow("Interest", "Self-Help", 2,0,0,0,0,0,2,0,2,0,0,0,0,0,0,0);
+    AddRow("Interest", "Education", 0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,2);
     
-    return score;
-}
-
-private static List<BookScoreCollection> GetBookCollections()
-{
-    return new List<BookScoreCollection>
-    {
-        new ()
-        {
-            Name = "Dopamine Detox Guide",
-            Interests = new[] { "habits", "self-help", "health & wellness" },
-            Purposes = new[] { "healthy lifestyle", "personal growth" },
-            BookIds = new[] { 1, 11, 5, 23, 14, 29 } // Atomic Habits, Deep Work, The Power of Now, Why We Sleep, Can't Hurt Me, Ikigai
-        },
-        new ()
-        {
-            Name = "Top 10 to Know History Inside Out",
-            Interests = new[] { "history", "politics", "non-fiction" },
-            Purposes = new[] { "academic", "professional development" },
-            BookIds = new[] { 2, 20, 12 } // Sapiens, The Art of War, Man's Search for Meaning
-        },
-        new ()
-        {
-            Name = "The Mental Fitness Stack",
-            Interests = new[] { "psychology", "habits", "productivity" },
-            Purposes = new[] { "personal growth", "professional development" },
-            BookIds = new[] { 6, 1, 11, 14, 5, 19 } // Thinking Fast and Slow, Atomic Habits, Deep Work, Can't Hurt Me, The Power of Now, The Subtle Art
-        },
-        new ()
-        {
-            Name = "Creative Mind Unlocked",
-            Interests = new[] { "art", "creativity", "philosophy" },
-            Purposes = new[] { "creativity & imagination" },
-            BookIds = new[] { 27, 22, 5 } // The War of Art, The Artist's Way, The Power of Now
-        },
-        new ()
-        {
-            Name = "Imaginative Realms & Escapes",
-            Interests = new[] { "fantasy", "sci-fi", "fiction" },
-            Purposes = new[] { "entertainment and relaxation", "creativity & imagination" },
-            BookIds = new[] { 17, 7 } // Dune, The Hobbit
-        },
-        new ()
-        {
-            Name = "Stories That Make You Empathize",
-            Interests = new[] { "fiction", "romance", "memoir" },
-            Purposes = new[] { "social & connection" },
-            BookIds = new[] { 8, 15, 9 } // To Kill a Mockingbird, Educated, Becoming
-        },
-        new ()
-        {
-            Name = "Life Lessons from Real Lives",
-            Interests = new[] { "memoir", "biography", "self-help" },
-            Purposes = new[] { "inspiration & motivation" },
-            BookIds = new[] { 12, 9, 15, 14, 13 } // Man's Search for Meaning, Becoming, Educated, Can't Hurt Me, Steve Jobs
-        },
-        new ()
-        {
-            Name = "The Builder's Toolkit",
-            Interests = new[] { "business", "productivity", "economics" },
-            Purposes = new[] { "professional development" },
-            BookIds = new[] { 16, 11, 6, 1, 18, 24 } // The 4-Hour Workweek, Deep Work, Thinking Fast and Slow, Atomic Habits, Outliers, Grit
-        },
-        new ()
-        {
-            Name = "Scientific Curiosity Pack",
-            Interests = new[] { "biology", "science", "philosophy" },
-            Purposes = new[] { "academic", "personal growth" },
-            BookIds = new[] { 2, 6 } // Sapiens, Thinking Fast and Slow
-        },
-        new ()
-        {
-            Name = "Brains and Biases",
-            Interests = new[] { "psychology", "philosophy", "self-help" },
-            Purposes = new[] { "academic", "personal growth" },
-            BookIds = new[] { 6, 1 } // Thinking Fast and Slow, Atomic Habits (The Power of Habit reference)
-        },
-        new ()
-        {
-            Name = "Mystery & Page-turners",
-            Interests = new[] { "detective", "mystery", "fiction", "thriller" },
-            Purposes = new[] { "entertainment and relaxation", "creativity & imagination" },
-            BookIds = new int[] { } // None of the selected books match this collection
-        },
-        new ()
-        {
-            Name = "Classics You Shouldn't Miss",
-            Interests = new[] { "fiction", "literature", "history" },
-            Purposes = new[] { "educational", "inspiration" },
-            BookIds = new[] { 3, 8 } // 1984, To Kill a Mockingbird
-        },
-        new ()
-        {
-            Name = "Epic Journeys & Adventure",
-            Interests = new[] { "adventure", "travel", "memoir" },
-            Purposes = new[] { "entertainment and relaxation", "creativity & imagination" },
-            BookIds = new[] { 30, 9, 15 } // The Road, Becoming, Educated (The Glass Castle reference)
-        }
-    };
+    // Books
+    AddRow("Book", "Atomic Habits", 3,0,0,0,0,0,2,0,3,0,0,0,0,0,0,0);
+    AddRow("Book", "Sapiens", 0,3,0,0,0,0,0,0,0,0,2,0,0,0,0,2);
+    AddRow("Book", "1984", 0,0,3,0,0,0,0,0,0,0,0,2,0,0,0,2);
+    AddRow("Book", "The Alchemist", 0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,2);
+    AddRow("Book", "The Power of Now", 0,0,0,3,0,0,0,0,0,0,0,0,2,0,0,0);
+    AddRow("Book", "Thinking, Fast and Slow", 0,0,0,0,0,0,3,0,2,0,0,0,0,0,0,0);
+    AddRow("Book", "The Hobbit", 0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,2);
+    AddRow("Book", "To Kill a Mockingbird", 0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,3);
+    AddRow("Book", "Becoming", 0,2,0,0,0,0,0,0,0,3,0,0,0,0,0,2);
+    AddRow("Book", "Quiet", 0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,2);
+    AddRow("Book", "Deep Work", 3,0,0,0,0,0,2,0,2,0,0,0,0,0,0,0);
+    AddRow("Book", "Man's Search for Meaning", 0,0,0,2,0,0,0,0,0,0,0,0,3,0,0,2);
+    AddRow("Book", "Steve Jobs", 0,0,0,0,0,2,0,0,0,0,0,0,0,3,0,0);
+    AddRow("Book", "Can't Hurt Me", 2,0,0,0,0,0,0,0,0,0,0,3,0,0,0,0);
+    AddRow("Book", "Educated", 0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,2);
+    AddRow("Book", "The 4-Hour Workweek", 3,0,0,0,0,2,0,0,0,0,0,0,0,3,0,0);
+    AddRow("Book", "Dune", 0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,3);
+    AddRow("Book", "Outliers", 0,2,0,0,0,0,3,0,0,0,0,0,0,0,0,0);
+    AddRow("Book", "The Subtle Art...", 2,0,0,0,0,0,2,0,2,0,0,0,0,0,0,0);
+    AddRow("Book", "The Art of War", 0,2,3,0,0,0,0,0,0,0,3,0,0,0,0,0);
+    AddRow("Book", "The Midnight Library", 0,0,0,2,0,0,0,3,0,0,0,0,0,0,0,3);
+    AddRow("Book", "The Artist's Way", 0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,2);
+    AddRow("Book", "Why We Sleep", 0,0,0,0,0,0,0,0,0,0,0,3,0,0,0,0);
+    AddRow("Book", "Grit", 2,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0);
+    AddRow("Book", "The Lean Startup", 0,0,0,0,0,3,0,0,0,0,0,0,0,3,0,0);
+    AddRow("Book", "The Body Keeps the Score", 0,0,0,0,0,0,0,0,0,0,0,3,0,0,0,0);
+    AddRow("Book", "The War of Art", 2,0,0,0,3,0,0,0,2,0,0,0,0,0,0,0);
+    AddRow("Book", "Meditations", 0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,3);
+    AddRow("Book", "Ikigai", 0,0,0,2,0,0,0,0,0,0,0,0,2,0,0,0);
+    AddRow("Book", "The Road", 0,0,3,0,0,0,0,2,0,0,0,0,0,0,0,3);
+    
+    // Purposes
+    AddRow("Purpose", "Personal Growth & Self-Improvement", 3,0,0,2,1,0,2,0,2,0,0,0,1,0,0,0);
+    AddRow("Purpose", "Social & Connection", 0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,2);
+    AddRow("Purpose", "Creativity & Imagination", 0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,2);
+    AddRow("Purpose", "Professional Development", 2,0,0,0,0,3,2,0,2,0,0,0,0,3,0,0);
+    AddRow("Purpose", "Inspiration & Motivation", 2,0,0,2,1,0,1,0,2,0,0,0,0,0,0,2);
+    AddRow("Purpose", "Academic & Educational Purposes", 0,3,0,0,0,0,3,0,0,0,0,0,0,0,0,2);
+    AddRow("Purpose", "Healthy Lifestyle", 2,0,0,0,0,0,0,0,0,0,0,3,0,0,0,0);
+    
+    return matrix;
 }
     
+    //TODO: Move this into Book controller
     private static async Task<IResult> GetInterestedBooks(
         BookAppContext db)
     {
