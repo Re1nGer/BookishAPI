@@ -184,11 +184,6 @@ private static async Task<IResult> UpdateUserPreferences(
     var userId = claimsPrincipal.Claims
         .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
     
-    if (string.IsNullOrEmpty(userId))
-    {
-        return Results.Unauthorized();
-    }
-    
     var parsedUserId = Guid.Parse(userId);
     
     var user = await db.Users
@@ -205,31 +200,36 @@ private static async Task<IResult> UpdateUserPreferences(
     // Clear existing preferences
     user.InterestAreas?.Clear();
     user.ReadingPurposes?.Clear();
+    user.SelectedBooks?.Clear();
     
     // Add interest areas
-    if (request?.InterestAreaIds != null && request.InterestAreaIds.Any())
+    if (request.InterestAreaIds.Any())
     {
         var interestAreas = await db.InterestAreas
             .Where(ia => request.InterestAreaIds.Contains(ia.Id))
             .ToListAsync();
         
-        foreach (var interestArea in interestAreas)
-        {
-            user.InterestAreas?.Add(interestArea);
-        }
+        user.InterestAreas?.AddRange(interestAreas);
     }
     
     // Add reading purposes
-    if (request?.ReadingPurposeIds != null && request.ReadingPurposeIds.Any())
+    if (request.ReadingPurposeIds.Any())
     {
         var readingPurposes = await db.ReadingPurposes
             .Where(rp => request.ReadingPurposeIds.Contains(rp.Id))
             .ToListAsync();
         
-        foreach (var readingPurpose in readingPurposes)
-        {
-            user.ReadingPurposes?.Add(readingPurpose);
-        }
+        user.ReadingPurposes?.AddRange(readingPurposes);
+    }
+    
+    // Add reading purposes
+    if (request.SelectedBookIds.Any())
+    {
+        var selectedBooks = await db.SelectedBooks
+            .Where(rp => request.SelectedBookIds.Contains(rp.Id))
+            .ToListAsync();
+        
+        user.SelectedBooks?.AddRange(selectedBooks);
     }
     
     await db.SaveChangesAsync();
@@ -237,8 +237,8 @@ private static async Task<IResult> UpdateUserPreferences(
     return Results.Ok(new
     {
         message = "User preferences updated successfully",
-        interestAreasCount = user.InterestAreas.Count,
-        readingPurposesCount = user.ReadingPurposes.Count
+        interestAreasCount = user?.InterestAreas?.Count,
+        readingPurposesCount = user?.ReadingPurposes?.Count
     });
 }
 

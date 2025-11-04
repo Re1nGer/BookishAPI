@@ -671,4 +671,5 @@ public class UpdateUserPreferencesRequest
 {
     public List<int> InterestAreaIds { get; set; } = new();
     public List<int> ReadingPurposeIds { get; set; } = new();
+    public List<int> SelectedBookIds { get; set; } = new();
 }
