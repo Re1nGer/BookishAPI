@@ -154,17 +154,6 @@ public static class Users
             .WithName("Register User's push token")
             .WithSummary("Register User's push token");
         
-        group.MapGet("interest-areas", GetInterestAreas)
-            .WithName("Get User Interest Areas")
-            .WithSummary("Get User Interest Areas");
-            
-        group.MapGet("reading-purposes", GetReadingPurposes)
-            .WithName("Get User Reading Purposes")
-            .WithSummary("Get User Reading Purposes");
-        
-        group.MapGet("interested-books", GetInterestedBooks)
-            .WithName("Get User Interested Books")
-            .WithSummary("Get User Interested Books");
         
         group.MapGet("recommended-books", GetRecommendedBooksForUser)
             .WithName("Get User recommended Books")
@@ -484,26 +473,6 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
 }
     
     //TODO: Move this into Book controller
-    private static async Task<IResult> GetInterestedBooks(
-        BookAppContext db)
-    {
-        var readingPurposes = await db.SelectedBooks.ToListAsync();
-        return Results.Ok(readingPurposes);
-    }
-    
-    private static async Task<IResult> GetReadingPurposes(
-        BookAppContext db)
-    {
-        var readingPurposes = await db.ReadingPurposes.ToListAsync();
-        return Results.Ok(readingPurposes);
-    }
-    
-    private static async Task<IResult> GetInterestAreas(
-        BookAppContext db)
-    {
-        var interestAreas = await db.InterestAreas.ToListAsync();
-        return Results.Ok(interestAreas);
-    }
     
     private static async Task<IResult> GetRepetitionGroupCards(ClaimsPrincipal claimsPrincipal, BookAppContext db, int groupId)
     {

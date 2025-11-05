@@ -44,8 +44,41 @@ public static class Books
         group.MapPost("{bookId}/quote", CreateBooksQuote)
             .WithName("Create Book's quote")
             .WithSummary("Create Book's note with book's id");
+            
+        group.MapGet("interest-areas", GetInterestAreas)
+            .WithName("Get User Interest Areas")
+            .WithSummary("Get User Interest Areas");
+            
+        group.MapGet("reading-purposes", GetReadingPurposes)
+            .WithName("Get User Reading Purposes")
+            .WithSummary("Get User Reading Purposes");
+        
+        group.MapGet("interested-books", GetInterestedBooks)
+            .WithName("Get User Interested Books")
+            .WithSummary("Get User Interested Books");
 
         return group;
+    }
+    
+    private static async Task<IResult> GetInterestedBooks(
+        BookAppContext db)
+    {
+        var readingPurposes = await db.SelectedBooks.ToListAsync();
+        return Results.Ok(readingPurposes);
+    }
+    
+    private static async Task<IResult> GetReadingPurposes(
+        BookAppContext db)
+    {
+        var readingPurposes = await db.ReadingPurposes.ToListAsync();
+        return Results.Ok(readingPurposes);
+    }
+    
+    private static async Task<IResult> GetInterestAreas(
+        BookAppContext db)
+    {
+        var interestAreas = await db.InterestAreas.ToListAsync();
+        return Results.Ok(interestAreas);
     }
     
     private static async Task<IResult> GetBooksNote(ClaimsPrincipal claimsPrincipal, BookAppContext db, int bookId, int noteId)
