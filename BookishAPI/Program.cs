@@ -673,3 +673,24 @@ public class UpdateUserPreferencesRequest
     public List<int> ReadingPurposeIds { get; set; } = new();
     public List<int> SelectedBookIds { get; set; } = new();
 }
+
+public class CollectionData
+{
+    public int[] PurposeIds { get; set; }
+    public BookInfo[] Books { get; set; }
+}
+
+// Public class for API response
+public class BookInfo
+{
+    public string Name { get; set; }
+    public string ImageUrl { get; set; }
+}
+
+public class ThemedCollection
+{
+    public string Name { get; set; }
+    public string[] Interests { get; set; }
+    public string[] Purposes { get; set; }
+    public string[] Books { get; set; }
+}
