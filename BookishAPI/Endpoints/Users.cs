@@ -244,25 +244,58 @@ private static async Task<IResult> GetRecommendedBooksForUser(
     var user = await db.Users
         .Include(a => a.InterestAreas)
         .Include(a => a.ReadingPurposes)
-        .Include(a => a.SelectedBooks)  // Include selected books
+        .Include(a => a.SelectedBooks)
         .FirstOrDefaultAsync(a => a.Id == parsedUserId);
     
     if (user == null)
     {
         return Results.NotFound("User not found");
     }
-
+    
     var allSelectedBooks = await db.SelectedBooks.ToListAsync();
     
-    // Get recommended books based on user's interests, purposes, and selected books
-    var recommendedBooks = GetBookRecommendationsFromWeightMatrix(
+    // Get recommended books based on weight matrix
+    var matrixRecommendations = GetBookRecommendationsFromWeightMatrix(
         user.InterestAreas, 
         user.ReadingPurposes,
         user.SelectedBooks,
-        allSelectedBooks);
+        allSelectedBooks
+    );
     
-    return Results.Ok(recommendedBooks);
+    // Get purpose-based book recommendations
+    var purposeBasedBooks = GetPurposeBasedBooks(user.ReadingPurposes);
+    
+    return Results.Ok(new
+    {
+        matrixRecommendations = matrixRecommendations,
+        purposeBasedBooks = purposeBasedBooks
+    });
 }
+
+private static List<BookInfo> GetPurposeBasedBooks(List<ReadingPurpose> userPurposes)
+{
+    if (!userPurposes.Any())
+    {
+        return new List<BookInfo>();
+    }
+    
+    var allCollections = BookRecommendationMapper.GetAllPurposeCollections();
+    var userPurposeIds = userPurposes.Select(p => p.Id).ToHashSet();
+    
+    // Get all books from collections that match user's purpose IDs
+    var books = allCollections
+        .Where(c => c.PurposeIds.Any(id => userPurposeIds.Contains(id)))
+        .SelectMany(c => c.Books)
+        .GroupBy(b => b.Name)
+        .Select(g => g.First()) // Remove duplicates
+        .ToList();
+    
+    return books;
+}
+
+
+
+
 
 private static List<SelectedBook> GetBookRecommendationsFromWeightMatrix(
     List<InterestArea>? userInterests,
@@ -271,110 +304,76 @@ private static List<SelectedBook> GetBookRecommendationsFromWeightMatrix(
     List<SelectedBook> allBooks)
 {
     // Initialize weight matrix
-    var weightMatrix = GetWeightMatrix();
+   // Get themed collections based on interests and purposes
+    var themedCollections = BookRecommendationMapper.GetThemedCollections();
     
-    // Calculate collection scores
-    var collectionScores = new Dictionary<string, int>();
-    var collections = new[]
-    {
-        "Dopamine Detox Guide", "The Human Odyssey", "Rebel Thinkers", 
-        "Spiritual Explorers", "Creativity Unlocked", "Leaders & Builders",
-        "Mind Gym", "Epic Journeys", "The Mind Hacker", "The Feminine Voice",
-        "Strategic Minds", "Health Reboot", "Philosopher's Path", 
-        "The Innovators", "Stories that Heal", "The Great Classics"
-    };
+    var userInterestNames = userInterests.Select(i => i.Name.ToLower()).ToHashSet();
+    var userPurposeNames = userPurposes.Select(p => p.Name.ToLower()).ToHashSet();
     
-    foreach (var collection in collections)
-    {
-        collectionScores[collection] = 0;
-    }
+    // Calculate match score for each collection
+    var collectionMatches = new Dictionary<string, int>();
     
-    // Add scores from user interests
-    foreach (var interest in userInterests)
+    foreach (var collection in themedCollections)
     {
-        var key = $"Interest:{interest.Name}";
-        if (weightMatrix.ContainsKey(key))
-        {
-            foreach (var collection in collections)
-            {
-                collectionScores[collection] += weightMatrix[key][collection];
-            }
-        }
-    }
-    
-    // Add scores from user purposes
-    foreach (var purpose in userPurposes)
-    {
-        var key = $"Purpose:{purpose.Name}";
-        if (weightMatrix.ContainsKey(key))
-        {
-            foreach (var collection in collections)
-            {
-                collectionScores[collection] += weightMatrix[key][collection];
-            }
-        }
-    }
-    
-    // Add scores from user's selected books
-    foreach (var selectedBook in userSelectedBooks)
-    {
-        var bookName = BookRecommendationMapper.GetBookNameForMatrix(selectedBook.Name);
-        var key = $"Book:{bookName}";
+        int score = 0;
         
-        if (weightMatrix.ContainsKey(key))
+        // Check interest matches
+        foreach (var interest in collection.Interests)
         {
-            foreach (var collection in collections)
+            if (userInterestNames.Contains(interest.ToLower()))
             {
-                // Weight selected books slightly higher to reinforce user preferences
-                collectionScores[collection] += weightMatrix[key][collection] * 2;
+                score += 2; // Weight interests higher
             }
         }
-    }
-    
-    // Get top collections (those with score > 0)
-    var topCollections = collectionScores
-        .Where(kvp => kvp.Value > 0)
-        .OrderByDescending(kvp => kvp.Value)
-        .Select(kvp => kvp.Key)
-        .ToList();
-    
-    // Calculate score for each book
-    var bookScores = new Dictionary<int, int>();
-    var bookWeights = weightMatrix.Where(kvp => kvp.Key.StartsWith("Book:")).ToList();
-    
-    foreach (var bookEntry in bookWeights)
-    {
-        var bookName = bookEntry.Key.Substring(5); // Remove "Book:" prefix
-        var totalScore = 0;
+        // Check if user has selected any books from this collection
+        var userSelectedBookNames = userSelectedBooks
+            .Select(b => BookRecommendationMapper.GetBookNameForMatrix(b.Name).ToLower())
+            .ToHashSet();
         
-        // Calculate total score for this book across user's top collections
-        foreach (var collection in topCollections)
+        foreach (var bookName in collection.Books)
         {
-            totalScore += bookEntry.Value[collection] * collectionScores[collection];
+            if (userSelectedBookNames.Contains(bookName.ToLower()))
+            {
+                score += 3; // Strongly reinforce collections with user's selected books
+            }
         }
         
-        // If book has a meaningful score, include it
-        if (totalScore > 0)
+        if (score > 0)
         {
-            var bookId = BookRecommendationMapper.GetBookIdByName(bookName);
-            if (bookId.HasValue)
-            {
-                bookScores[bookId.Value] = totalScore;
-            }
+            collectionMatches[collection.Name] = score;
+        }
+    }
+    
+    // Get all books from matched collections
+    var recommendedBookNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    
+    foreach (var match in collectionMatches.OrderByDescending(kvp => kvp.Value))
+    {
+        var collection = themedCollections.First(c => c.Name == match.Key);
+        foreach (var bookName in collection.Books)
+        {
+            recommendedBookNames.Add(bookName);
         }
     }
     
     // Exclude books the user has already selected
     var userSelectedBookIds = userSelectedBooks.Select(b => b.Id).ToHashSet();
-    var recommendedBookIds = bookScores.Keys
-        .Where(id => !userSelectedBookIds.Contains(id))
-        .ToHashSet();
     
-    // Return the selected books, ordered by score
-    return allBooks
-        .Where(b => recommendedBookIds.Contains(b.Id))
-        .OrderByDescending(b => bookScores.GetValueOrDefault(b.Id, 0))
-        .ToList();
+    // Map book names to SelectedBook objects
+    var recommendedBooks = new List<SelectedBook>();
+
+    var test = new Memory<string>();
+    
+    foreach (var book in allBooks)
+    {
+        var bookMatrixName = BookRecommendationMapper.GetBookNameForMatrix(book.Name);
+        if (recommendedBookNames.Contains(bookMatrixName) && !userSelectedBookIds.Contains(book.Id))
+        {
+            recommendedBooks.Add(book);
+        }
+    }
+    
+    return recommendedBooks;
 }
 
 private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
