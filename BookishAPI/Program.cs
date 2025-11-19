@@ -30,6 +30,7 @@ builder.Services.AddScoped<CategoryMapper>();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<FirebaseService>();
+builder.Services.AddScoped<StripeService>();
 //builder.Services.AddHostedService<NotificationSchedulerService>();
 
 builder.Services.Configure<JsonOptions>(options =>
@@ -124,6 +125,7 @@ app.UseAuthorization();
 
 app.MapBooksEndpoints();
 app.MapUsersEndpoints();
+app.MapStripeEndpoints();
 
 using (var scope = app.Services.CreateScope())
 {
@@ -202,7 +204,7 @@ app.MapPost("/login", async (LoginRequest request, BookAppContext db, TokenServi
         return Results.BadRequest(new { Error = "Wrong password. Please try again!" });
     }
 
-    return Results.Ok(tokens);
+    return Results.Ok(new { accessToken = tokens.AccessToken, refreshToken = tokens.RefreshToken, userId=user.Id });
 });
 
 app.MapPost("/code-verify", async (CodeVerify request, BookAppContext db) =>
