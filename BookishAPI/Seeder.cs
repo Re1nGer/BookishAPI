@@ -85,7 +85,7 @@ public async Task SeedSelectedBooks()
     {
         new SelectedBook { Id = 1, Name = "Atomic Habits – James Clear", ImageUrl = "https://m.media-amazon.com/images/I/81ANaVZk5LL._SL1500_.jpg" },
         new SelectedBook { Id = 2, Name = "Sapiens – Yuval Noah Harari", ImageUrl = "https://m.media-amazon.com/images/I/81DOTIO7J6L._SL1500_.jpg" },
-        new SelectedBook { Id = 3, Name = "1984 – George Orwell", ImageUrl = "https://prodimage.images-bn.com/pimages/9780452262935_p0_v6_s1200x1200.jpg" },
+        new SelectedBook { Id = 3, Name = "1984 – George Orwell", ImageUrl = "https://m.media-amazon.com/images/I/7180qjGSgDL._SY425_.jpg" },
         new SelectedBook { Id = 4, Name = "The Alchemist – Paulo Coelho", ImageUrl = "https://m.media-amazon.com/images/I/71+2-t7M35L._SL1500_.jpg" },
         new SelectedBook { Id = 5, Name = "The Power of Now – Eckhart Tolle", ImageUrl = "https://m.media-amazon.com/images/I/91u60S7lY7L._SL1500_.jpg" },
         new SelectedBook { Id = 6, Name = "Thinking, Fast and Slow – Kahneman", ImageUrl = "https://m.media-amazon.com/images/I/61fdrEuPJwL._SL1500_.jpg" },
