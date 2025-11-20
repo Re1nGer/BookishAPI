@@ -23,6 +23,12 @@ public class User
     public string Email { get; set; }
     public bool IsEmailVerified { get; set; }
     public string? Password { get; set; }
+    public StreakLengthInDays StreakLengthInDays { get; set; }
+    public TimeLengthInMinutes TimeLengthInMinutes { get; set; }
+    public TimeOnly DailyReminderAt { get; set; }
+    public bool IsPremiumUser { get; set; }
+    public int BookAmountGoalInYear { get; set; }
+    public string? TimeZoneId { get; set; }
     public List<NoteType> NoteTypes { get; set; }
     public List<NoteCollection> NoteCollections { get; set; }
     public List<QuoteCollection> QuoteCollections { get; set; }
@@ -321,6 +327,20 @@ public class UserGroupNotificationSchedule
     public SpacedRepetitionGroup Group { get; set; } = null!;
 }
 
+public enum StreakLengthInDays {
+    Seven = 7,
+    Fourteen = 14,
+    Thirty = 30,
+    Fifty = 50
+}
+
+public enum TimeLengthInMinutes
+{
+    Twenty = 20,
+    Thirty = 30,
+    FortyFive = 45,
+    Sixty = 60
+}
 
 // DbContext
 

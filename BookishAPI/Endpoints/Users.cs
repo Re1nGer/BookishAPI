@@ -185,6 +185,37 @@ private static async Task<IResult> UpdateUserPreferences(
     {
         return Results.NotFound("User not found");
     }
+
+    if (request.BookAmountGoalInYear is not null)
+    {
+        user.BookAmountGoalInYear = request.BookAmountGoalInYear.Value;
+    }
+
+    if (request.TimeLengthInMinutes is not null)
+    {
+        user.TimeLengthInMinutes = request.TimeLengthInMinutes.Value;
+    }
+    
+    if (request.StreakLengthInDays is not null)
+    {
+        user.StreakLengthInDays = request.StreakLengthInDays.Value;
+    }
+    
+    if (request.DailyReminderAt is not null)
+    {
+        var hourInt = request.DailyReminderAt.Hour;
+        
+        if (request.DailyReminderAt.TimeFormat.Equals("PM", StringComparison.OrdinalIgnoreCase) && request.DailyReminderAt.Hour != 12)
+        {
+            hourInt += 12;
+        }
+        else if (request.DailyReminderAt.TimeFormat.Equals("AM", StringComparison.OrdinalIgnoreCase) && hourInt == 12)
+        {
+            hourInt = 0;
+        }
+        user.DailyReminderAt = new TimeOnly(hourInt, request.DailyReminderAt.Minute);
+        user.TimeZoneId = request.DailyReminderAt.TimeZoneId;
+    }
     
     // Clear existing preferences
     user.InterestAreas?.Clear();
