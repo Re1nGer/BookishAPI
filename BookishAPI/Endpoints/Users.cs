@@ -629,7 +629,7 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
         ClaimsPrincipal claimsPrincipal,
         BookAppContext db,
         [FromQuery] DateTime? from,
-        DateTime? to)
+        [FromQuery] DateTime? to)
     {
         var userId = claimsPrincipal.Claims
             .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
@@ -643,8 +643,8 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
             .GroupBy(j => j.ReadAt.Date)
             .Select(g => new Stat
             {
-                Day = g.Key.DayOfWeek.ToString(),
-                PagesRead = g.Sum(a => a.PageNumber) 
+                Date = g.Key.Date.ToString("yyyy-MM-dd"),
+                PagesRead = g.Sum(a => a.PageNumber)
             })
             .ToListAsync();
         

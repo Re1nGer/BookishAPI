@@ -635,7 +635,7 @@ public class BookReadStat
 
 public class Stat
 {
-    public string Day { get; set; }
+    public string Date { get; set; }
     public long PagesRead { get; set; }
 }
 
