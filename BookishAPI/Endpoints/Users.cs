@@ -878,7 +878,10 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
 
         return Results.Ok(collections);
     }
-    private static async Task<IResult> GetNoteCollections(ClaimsPrincipal claimsPrincipal, BookAppContext db)
+    private static async Task<IResult> GetNoteCollections(
+        ClaimsPrincipal claimsPrincipal,
+        BookAppContext db,
+        string? searchText)
     {
         var userId = claimsPrincipal.Claims
             .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
@@ -887,6 +890,7 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
     
         var collections = await db.NoteCollections
             .Where(item => item.UserId == parsedUserId)
+            .Where(item => string.IsNullOrEmpty(searchText) || item.Name.Contains(searchText))
             .OrderByDescending(item => item.Id)
             .Select(item => new BookCollectionWithCountDto(item.Id, item.Name, item.Notes.Count, item.IconId))
             .ToListAsync();
