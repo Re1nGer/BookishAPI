@@ -207,6 +207,12 @@ app.MapPost("/login", async (LoginRequest request, BookAppContext db, TokenServi
     return Results.Ok(new { accessToken = tokens.AccessToken, refreshToken = tokens.RefreshToken, userId=user.Id });
 });
 
+app.MapPost("/refresh", async (RefreshTokenRequest request, TokenService tokenService) =>
+{
+    var rotatedTokens = tokenService.RotateTokens(request.RefreshToken);
+    return Results.Ok(new { accessToken = rotatedTokens.AccessToken, refreshToken = rotatedTokens.RefreshToken });
+}).AllowAnonymous();
+
 app.MapPost("/code-verify", async (CodeVerify request, BookAppContext db) =>
 {
     var verificationCode = await db.VerificationCodes
@@ -502,6 +508,7 @@ app.Run();
 
 //Extract out into separate folder
 public record LoginRequest(string Email, string? Password);
+public record RefreshTokenRequest(string RefreshToken);
 public record UserRegistrationRequest(string Username, string Email, string Password);
 public record UserSettingsUpdateRequest(bool NotificationsEnabled, TimeFormat TimeFormat);
 public record GoalCreateRequest(GoalType Type, GoalPeriod Period, int Target);
