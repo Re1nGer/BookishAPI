@@ -872,9 +872,12 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
             .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
 
         var parsedUserId = Guid.Parse(userId);
+        
+        var searchTextToLower = searchText?.ToLower();
 
         var collections = await db.QuoteCollections
             .Where(item => item.UserId == parsedUserId)
+            .Where(item => string.IsNullOrEmpty(searchText) || item.Name.ToLower().Contains(searchTextToLower))
             .OrderByDescending(item => item.Id)
             .Select(item => new QuoteCollectionWithCountDto(item.Id, item.Name, item.Quotes.Count, item.IconId))
             .ToListAsync();
