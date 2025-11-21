@@ -630,7 +630,8 @@ public record UserMemoryEvent(long Id, int BookId, string Author, string BookNam
 
 public class BookReadStat
 {
-    public string Day { get; set; }
+    public string Date { get; set; }
+    public long BooksRead { get; set; }
 }
 
 public class Stat

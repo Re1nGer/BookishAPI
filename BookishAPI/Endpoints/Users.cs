@@ -653,10 +653,11 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
             .Where(j => from == null || j.FinishedAt >= from.Value)
             .Where(j => to == null || j.FinishedAt <= to.Value)
             .Where(j => j.Status == BookStatus.Finished)
-            .GroupBy(j => j.FinishedAt)
+            .GroupBy(j => j.FinishedAt.Value.Date)
             .Select(g => new BookReadStat
             {
-                Day = g.Key!.Value.DayOfWeek.ToString()
+                Date = g.Key!.Date.ToString("yyyy-MM-dd"),
+                BooksRead = g.Count()
             })
             .ToListAsync();
 
