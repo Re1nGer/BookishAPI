@@ -863,7 +863,10 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
 
         return Results.Ok(collections);
     }
-    private static async Task<IResult> GetQuoteCollections(ClaimsPrincipal claimsPrincipal, BookAppContext db)
+    private static async Task<IResult> GetQuoteCollections(
+        ClaimsPrincipal claimsPrincipal,
+        BookAppContext db,
+        string? searchText)
     {
         var userId = claimsPrincipal.Claims
             .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
@@ -1074,15 +1077,21 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
 
         return Results.Ok(quotes);
     }
-    private static async Task<IResult> GetUserBookCollections(ClaimsPrincipal claimsPrincipal, BookAppContext db)
+    private static async Task<IResult> GetUserBookCollections(
+        ClaimsPrincipal claimsPrincipal,
+        BookAppContext db,
+        [FromQuery] string? searchText)
     {
         var userId = claimsPrincipal.Claims
             .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
 
         var parsedUserId = Guid.Parse(userId);
+        
+        var searchTextToLower = searchText?.ToLower();
 
         var collections = await db.BookCollections
             .Where(item => item.UserId == parsedUserId)
+            .Where(item => string.IsNullOrEmpty(searchText) || item.Name.ToLower().Contains(searchTextToLower))
             .OrderByDescending(item => item.Id)
             .Select(item => new CollectionWithCountDto(item.Id, item.Name, item.Books.Count, item.IconId))
             .ToListAsync();
