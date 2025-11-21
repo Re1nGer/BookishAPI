@@ -154,7 +154,6 @@ public static class Users
             .WithName("Register User's push token")
             .WithSummary("Register User's push token");
         
-        
         group.MapGet("recommended-books", GetRecommendedBooksForUser)
             .WithName("Get User recommended Books")
             .WithSummary("Get User recommended Books");
@@ -1275,7 +1274,13 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
         
         return Results.Ok();
     }
-    private static async Task<IResult> GetUserBooks(ClaimsPrincipal claimsPrincipal, int[]? statuses, string[]? authors, string[]? categories, int[]? collections, BookAppContext db)
+    private static async Task<IResult> GetUserBooks(ClaimsPrincipal claimsPrincipal,
+        int[]? statuses,
+        string[]? authors,
+        string[]? categories,
+        int[]? collections,
+        string? searchText,
+        BookAppContext db)
     {
         var userId = claimsPrincipal.Claims
             .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
@@ -1287,6 +1292,14 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
             .Include(item => item.BookCollections)
             .AsNoTracking()
             .Where(item => item.UserId == parsedUserId);
+
+        if (!string.IsNullOrEmpty(searchText))
+        {
+            var searchTextToLower = searchText.ToLower();
+            
+            books = books.Where(item => item.Author.ToLower().Contains(searchTextToLower)
+                                        || item.Title.ToLower().Contains(searchTextToLower));
+        }
 
         if (statuses?.Length > 0)
         {
