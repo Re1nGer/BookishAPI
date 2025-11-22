@@ -627,7 +627,7 @@ public record UserStat(
     List<BookReadStat> BookReadStats,
     long QuotesSaved,
     long NotesSaved,
-    BookCategory[] TopCategories,
+    object TopCategories,
     BookAuthor[] TopAuthors);
 
 public record BookCategory(int Id, string Name);

@@ -672,17 +672,22 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
             .Where(j => j.Book.UserId == parsedUserId)
             .LongCountAsync();
 
-        var topCategoryNames = await db.Books
+        var topCategories = await db.Books
             .Where(j => j.UserId == parsedUserId)
             .Where(j => from == null || j.UpdatedAt >= from.Value)
             .Where(j => to == null || j.UpdatedAt <= to.Value)
             .SelectMany(j => j.Genres)
             .GroupBy(g => g.Name)
             .OrderByDescending(g => g.Count())
-            .Take(5) // top 5 categories
-            .Select(g => g.Key)
+            .Take(5)
+            .Select(g => new { 
+                Category = g.Key,
+                Books = g.SelectMany(genre => genre.Books).Distinct().ToList()
+            })
             .ToListAsync();
 
+
+        /*
         var topCategories = await db.Books
             .Where(j => j.UserId == parsedUserId)
             .Where(j => j.Genres.Any(g => topCategoryNames.Contains(g.Name)))
@@ -690,6 +695,7 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
             .Take(2)
             .Select(j => new BookCategory(j.Id, string.Join(",", j.Genres.Select(a => a.Name))))
             .ToArrayAsync();
+            */
 
         var topAuthors = await db.Books
             .Where(j => j.UserId == parsedUserId)
@@ -697,7 +703,7 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
             .Where(j => to == null || j.UpdatedAt <= to.Value)
             .GroupBy(j => j.Author)
             .OrderByDescending(g => g.Count())
-            .Take(2)
+            .Take(5)
             .Select(g => new BookAuthor(g.First().Id, g.Key))
             .ToArrayAsync();
 
