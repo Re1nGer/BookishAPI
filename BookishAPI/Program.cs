@@ -569,8 +569,17 @@ public record BookDto(
     int Status,
     List<NoteDto> Notes,
     List<CollectionDto> Collections,
-    List<QuoteDto> Quotes
+    List<QuoteDto> Quotes,
+    ReadingSessionDto? Session = null
 );
+
+public class ReadingSessionDto
+{
+    public int BookId { get; set; }
+    public DateTime EndTime { get; set; }
+    public int EndPage { get; set; }
+    public int DurationInSeconds { get; set; }
+}
 
 public record NoteBookDto(int Id, string Name);
 

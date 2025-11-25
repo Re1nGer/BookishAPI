@@ -166,7 +166,7 @@ public static class Users
             .WithName("Create reading session")
             .WithSummary("Create reading session");
         
-        group.MapGet("sessions", GetReadingSessionsForBook)
+        group.MapGet("sessions/{bookId}", GetReadingSessionsForBook)
             .WithName("Get all reading sessions")
             .WithSummary("Get all reading sessions");
             
@@ -1389,20 +1389,22 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
         return Results.Ok(await books.ToListAsync());
 
     }
+
     private static async Task<IResult> GetUserBookById(ClaimsPrincipal claimsPrincipal, int id, BookAppContext db)
     {
         var userId = claimsPrincipal.Claims
             .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
-        
+
         var parsedUserId = Guid.Parse(userId);
 
         var book = await db.Books
+            .Include(a => a.ReadingSessions)
             .Include(item => item.Notes)
             .ThenInclude(item => item.Type)
             .Include(item => item.BookCollections)
             .Include(item => item.Quotes)
             .Include(item => item.Genres)
-            .AsSplitQuery()
+            //.AsSplitQuery()
             .FirstOrDefaultAsync(item => item.Id == id && item.UserId == parsedUserId);
 
         if (book is null)
@@ -1410,6 +1412,7 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
             return Results.NotFound("Book not found");
         }
 
+        var lastSession = book.ReadingSessions.MaxBy(a => a.EndTime);
 
         var bookDto = new BookDto(
             Id: book.Id,
@@ -1422,25 +1425,31 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
             Author: book.Author,
             Status: (int)book.Status,
             ImageUrl: book.ImageUrl,
-            Categories: book.Genres.Select(item =>  //Extract into separate map method
+            Categories: book.Genres.Select(item => //Extract into separate map method
                 new CategoryDto(item.Id, item.Name)).ToList(),
             Notes: book.Notes
-                .Select(item => 
+                .Select(item =>
                     new NoteDto(Id: item.Id,
-                    Content: item.Content,
-                    TypeName: item.Type.Name,
-                    Color: item.Type.Color,
-                    Icon: item.Type.Icon,
-                    CreatedAt: item.CreatedAt)
+                        Content: item.Content,
+                        TypeName: item.Type.Name,
+                        Color: item.Type.Color,
+                        Icon: item.Type.Icon,
+                        CreatedAt: item.CreatedAt)
                 ).OrderByDescending(item => item.CreatedAt)
                 .ToList(),
             Collections: book.BookCollections.Select(item =>
                 new CollectionDto(item.Id, item.Name)).ToList(),
             Quotes: book.Quotes.Select(item =>
-                new QuoteDto(item.Id, book.Title, item.Content))
-                .ToList());
+                    new QuoteDto(item.Id, book.Title, item.Content))
+                .ToList(),
+            Session: lastSession is not null ? new ReadingSessionDto {
+                BookId = lastSession.BookId,
+                EndTime = lastSession.EndTime,
+                EndPage = lastSession.EndPage,
+                DurationInSeconds = lastSession.DurationInSeconds
+            } : null);
 
-        return Results.Ok(bookDto);
+    return Results.Ok(bookDto);
     }
     private static async Task<IResult> GetUserHome(ClaimsPrincipal claimsPrincipal, BookAppContext db)
     {
