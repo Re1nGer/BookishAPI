@@ -716,3 +716,12 @@ public class ThemedCollection
     public string[] Purposes { get; set; }
     public string[] Books { get; set; }
 }
+
+public class CreateReadingSessionRequest
+{
+    public int BookId { get; set; }
+    public int EndPage { get; set; }
+    public int SessionLengthInSeconds { get; set; }
+    public string TimeZoneId { get; set; }
+}
+

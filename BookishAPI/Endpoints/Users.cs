@@ -161,9 +161,49 @@ public static class Users
         group.MapPost("preferences", UpdateUserPreferences)
             .WithName("Update User Book Preferences")
             .WithSummary("Update User Book Preferences");
+        
+        group.MapPost("sessions", CreateReadSession)
+            .WithName("Create reading session")
+            .WithSummary("Create reading session");
+        
+        group.MapGet("sessions", GetReadingSessionsForBook)
+            .WithName("Get all reading sessions")
+            .WithSummary("Get all reading sessions");
             
         return group;
     }
+    
+private static async Task<IResult> GetReadingSessionsForBook(
+    BookAppContext db,
+    int bookId)
+{
+    var sessions = await db.ReadingSessions
+        .AsNoTracking()
+        .Where(a => a.BookId == bookId)
+        .OrderByDescending(a => a.EndTime)
+        .ToListAsync();
+
+    return Results.Ok(sessions);
+}
+    
+private static async Task<IResult> CreateReadSession(
+    BookAppContext db,
+    CreateReadingSessionRequest body)
+{
+    var session = new ReadingSession()
+    {
+        DurationInSeconds = body.SessionLengthInSeconds,
+        BookId = body.BookId,
+        EndPage = body.EndPage,
+        EndTime = DateTime.UtcNow,
+        TimeZoneId = body.TimeZoneId
+    };
+
+    await db.ReadingSessions.AddAsync(session);
+    await db.SaveChangesAsync();
+
+    return Results.Ok();
+}
 private static async Task<IResult> UpdateUserPreferences(
     ClaimsPrincipal claimsPrincipal,
     BookAppContext db,
@@ -322,10 +362,6 @@ private static List<BookInfo> GetPurposeBasedBooks(List<ReadingPurpose> userPurp
     
     return books;
 }
-
-
-
-
 
 private static List<SelectedBook> GetBookRecommendationsFromWeightMatrix(
     List<InterestArea>? userInterests,
