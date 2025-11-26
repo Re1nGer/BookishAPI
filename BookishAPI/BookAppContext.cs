@@ -217,6 +217,7 @@ public class ReadingSession
     public DateTime EndTime { get; set; }
     public string TimeZoneId { get; set; }
     public int EndPage { get; set; }
+    public int PagesRead { get; set; }
     public int DurationInSeconds { get; set; }
 }
 

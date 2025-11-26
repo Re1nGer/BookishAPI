@@ -579,6 +579,7 @@ public class ReadingSessionDto
     public DateTime EndTime { get; set; }
     public int EndPage { get; set; }
     public int DurationInSeconds { get; set; }
+    public int PagesRead { get; set; }
 }
 
 public record NoteBookDto(int Id, string Name);
@@ -732,5 +733,6 @@ public class CreateReadingSessionRequest
     public int EndPage { get; set; }
     public int SessionLengthInSeconds { get; set; }
     public string TimeZoneId { get; set; }
+    public int PagesRead { get; set; }
 }
 

@@ -196,7 +196,8 @@ private static async Task<IResult> CreateReadSession(
         BookId = body.BookId,
         EndPage = body.EndPage,
         EndTime = DateTime.UtcNow,
-        TimeZoneId = body.TimeZoneId
+        TimeZoneId = body.TimeZoneId,
+        PagesRead = body.PagesRead
     };
 
     await db.ReadingSessions.AddAsync(session);
@@ -1398,6 +1399,7 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
         var parsedUserId = Guid.Parse(userId);
 
         var book = await db.Books
+            .AsNoTracking()
             .Include(a => a.ReadingSessions)
             .Include(item => item.Notes)
             .ThenInclude(item => item.Type)
@@ -1446,7 +1448,8 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
                 BookId = lastSession.BookId,
                 EndTime = lastSession.EndTime,
                 EndPage = lastSession.EndPage,
-                DurationInSeconds = lastSession.DurationInSeconds
+                DurationInSeconds = lastSession.DurationInSeconds,
+                PagesRead = lastSession.PagesRead
             } : null);
 
     return Results.Ok(bookDto);
