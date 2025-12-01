@@ -632,6 +632,20 @@ public record CreateRepetitionGroup(
     RepetitionMode Mode,
     RepeatAt Time);
 
+public class UpdateBookGoalRequest
+{
+    public int Amount { get; set; }
+}
+
+public class UserGoalState
+{
+    public int? PagesGoal { get; set; }
+    public int? TimeGoalInMinutes { get; set; }
+    public int? BooksGoal { get; set; }
+    public int? CurrentAmountBooksGoal { get; set; }
+    public int? CurrentAmountMinutes { get; set; }
+}
+
 public record UserEvent(long Id, int BookId, string BookName, short Rating, string ImageUrl, DateTime FinishedAt, string? ImageId, string? Memo);
 public record UserStat(
     List<Stat> ReadStats,

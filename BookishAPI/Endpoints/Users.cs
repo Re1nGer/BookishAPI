@@ -170,8 +170,74 @@ public static class Users
             .WithName("Get all reading sessions")
             .WithSummary("Get all reading sessions");
             
+        group.MapPost("goals/books-amount", UpdateBookGoalCount)
+            .WithName("Update user book goal amount")
+            .WithSummary("Update user book goal amount");
+        
+        group.MapGet("goals/books-amount", GetUserGoalState)
+            .WithName("Get user book goal state")
+            .WithSummary("Get user book goal state");
+            
         return group;
     }
+    
+private static async Task<IResult> GetUserGoalState(
+    ClaimsPrincipal claimsPrincipal,
+    BookAppContext db)
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+    
+    var parsedUserId = Guid.Parse(userId);
+
+    var user = await db.Users.FirstOrDefaultAsync(a => a.Id == parsedUserId);
+
+    if (user is null)
+    {
+        return Results.NotFound("User not found");
+    }
+
+    var booksReadWithinCurrentYear = await db.Books
+        .Where(a => a.Status == BookStatus.Finished && 
+                    a.FinishedAt >= new DateTime(DateTime.UtcNow.Year, 1, 1))
+        .CountAsync();
+
+    var minutesReadWithinToday = await db.ReadingSessions
+        .Where(a =>
+            a.EndTime >= DateTime.UtcNow.Date)
+        .SumAsync(a => a.PagesRead);
+    
+    return Results.Ok(new UserGoalState
+    {
+        CurrentAmountBooksGoal = booksReadWithinCurrentYear,
+        BooksGoal = user.BookAmountGoalInYear,
+        PagesGoal = user.PagesReadGoalInYear,
+        TimeGoalInMinutes = (int)user.TimeLengthInMinutes,
+        CurrentAmountMinutes = minutesReadWithinToday
+    });
+}
+    
+private static async Task<IResult> UpdateBookGoalCount(
+    ClaimsPrincipal claimsPrincipal,
+    BookAppContext db,
+    UpdateBookGoalRequest body)
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+    
+    var parsedUserId = Guid.Parse(userId);
+
+    var user = await db.Users.FirstOrDefaultAsync(a => a.Id == parsedUserId);
+
+    if (user is null)
+    {
+        return Results.NotFound("User not found");
+    }
+
+    user.BookAmountGoalInYear = body.Amount;
+    await db.SaveChangesAsync();
+    return Results.Ok();
+}
     
 private static async Task<IResult> GetReadingSessionsForBook(
     BookAppContext db,

@@ -27,7 +27,8 @@ public class User
     public TimeLengthInMinutes TimeLengthInMinutes { get; set; }
     public TimeOnly DailyReminderAt { get; set; }
     public bool IsPremiumUser { get; set; }
-    public int BookAmountGoalInYear { get; set; }
+    public int? BookAmountGoalInYear { get; set; }
+    public int? PagesReadGoalInYear { get; set; }
     public string? TimeZoneId { get; set; }
     public List<NoteType> NoteTypes { get; set; }
     public List<NoteCollection> NoteCollections { get; set; }
