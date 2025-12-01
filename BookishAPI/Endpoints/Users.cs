@@ -174,7 +174,7 @@ public static class Users
             .WithName("Update user book goal amount")
             .WithSummary("Update user book goal amount");
         
-        group.MapGet("goals/books-amount", GetUserGoalState)
+        group.MapGet("goals/state", GetUserGoalState)
             .WithName("Get user book goal state")
             .WithSummary("Get user book goal state");
             
