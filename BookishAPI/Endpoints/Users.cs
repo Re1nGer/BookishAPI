@@ -197,9 +197,10 @@ private static async Task<IResult> GetUserGoalState(
         return Results.NotFound("User not found");
     }
 
+    var currentYear = new DateTime(DateTime.UtcNow.Year, 1, 1).ToUniversalTime();
     var booksReadWithinCurrentYear = await db.Books
         .Where(a => a.Status == BookStatus.Finished && 
-                    a.FinishedAt >= new DateTime(DateTime.UtcNow.Year, 1, 1))
+                    a.FinishedAt!.Value >= currentYear)
         .CountAsync();
 
     var minutesReadWithinToday = await db.ReadingSessions
@@ -210,8 +211,8 @@ private static async Task<IResult> GetUserGoalState(
     return Results.Ok(new UserGoalState
     {
         CurrentAmountBooksGoal = booksReadWithinCurrentYear,
-        BooksGoal = user.BookAmountGoalInYear,
-        PagesGoal = user.PagesReadGoalInYear,
+        BooksGoal = user?.BookAmountGoalInYear,
+        PagesGoal = user?.PagesReadGoalInYear,
         TimeGoalInMinutes = (int)user.TimeLengthInMinutes,
         CurrentAmountMinutes = minutesReadWithinToday
     });
