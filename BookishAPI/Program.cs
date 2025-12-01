@@ -629,7 +629,8 @@ public record CreateRepetitionGroup(
     string Name,
     List<int> QuoteIds,
     List<int> NoteIds,
-    List<DateTime> ScheduledTimes);
+    RepetitionMode Mode,
+    RepeatAt Time);
 
 public record UserEvent(long Id, int BookId, string BookName, short Rating, string ImageUrl, DateTime FinishedAt, string? ImageId, string? Memo);
 public record UserStat(
@@ -672,13 +673,6 @@ public class RegisterTokenRequest
     public string Platform { get; set; } = "android"; // "ios", "android", "web"
 }
 
-public class ScheduleNotificationRequest
-{
-    public int UserId { get; set; }
-    public int GroupId { get; set; }
-    public List<DateTime> ScheduledTimes { get; set; } = new();
-}
-
 public class BookScoreCollection
 {
     public string Name { get; set; }
@@ -699,6 +693,14 @@ public class UpdateUserPreferencesRequest
 }
 
 public class DailyReminderAt
+{
+    public int Hour { get; set; }
+    public int Minute { get; set; }
+    public string TimeZoneId { get; set; }
+    public string TimeFormat { get; set; }
+}
+
+public class RepeatAt
 {
     public int Hour { get; set; }
     public int Minute { get; set; }

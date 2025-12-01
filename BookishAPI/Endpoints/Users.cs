@@ -648,7 +648,7 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
             
             await db.SaveChangesAsync();
             
-            await notificationService.SaveNotificationSchedulesAsync(parsedUserId, group.Id, request.ScheduledTimes);
+            //await notificationService.SaveNotificationSchedulesAsync(parsedUserId, group.Id, request);
 
             await transaction.CommitAsync();
         }

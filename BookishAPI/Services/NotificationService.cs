@@ -6,6 +6,13 @@ public class NotificationService
 {
     private readonly BookAppContext _context;
     private readonly ILogger<BookAppContext> _logger;
+    private static readonly Dictionary<RepetitionMode, int[]> OFFSETS = new()
+    {
+        { RepetitionMode.LIGHT, new[] { 2, 7, 21, 45, 90, 180 } },
+        { RepetitionMode.STANDARD, new[] { 1, 6, 14, 30, 66, 150, 360 } },
+        { RepetitionMode.INTENSIVE, new[] { 1, 3, 7, 15, 35, 90, 240 } },
+        { RepetitionMode.CRAM, new[] { 1, 2, 4, 7, 14, 30 } }
+    };
 
     public NotificationService(BookAppContext context, ILogger<BookAppContext> logger)
     {
@@ -108,22 +115,59 @@ public class NotificationService
         }
     }
 
-    public async Task SaveNotificationSchedulesAsync(Guid userId, int groupId, List<DateTime> scheduledTimes)
+    public async Task SaveNotificationSchedulesAsync(
+        Guid userId, 
+        int groupId, 
+        CreateRepetitionGroup scheduledTime)  // Single object now
     {
-        var newSchedules = scheduledTimes.Select(time => new UserGroupNotificationSchedule
-        {
-            UserId = userId,
-            GroupId = groupId,
-            ScheduledTime = time,
-            IsSent = false,
-            CreatedAt = DateTime.UtcNow
-        }).ToList();
+        var schedules = new List<UserGroupNotificationSchedule>();
+        var now = DateTime.UtcNow;
 
-        _context.UserGroupNotificationSchedules.AddRange(newSchedules);
+        var offsets = OFFSETS[scheduledTime.Mode];
+        var userTimeZone = TimeZoneInfo.FindSystemTimeZoneById(scheduledTime.Time.TimeZoneId);
         
-        await _context.SaveChangesAsync();
+        var hourInt = scheduledTime.Time.Hour;
+        
+        if (scheduledTime.Time.TimeFormat.Equals("PM", StringComparison.OrdinalIgnoreCase) && scheduledTime.Time.Hour != 12)
+        {
+            hourInt += 12;
+        }
+        else if (scheduledTime.Time.TimeFormat.Equals("AM", StringComparison.OrdinalIgnoreCase) && hourInt == 12)
+        {
+            hourInt = 0;
+        }
 
-        _logger.LogInformation($"Saved {newSchedules.Count} notification schedules for User {userId}, Group {groupId}");
+        var definedTime = new TimeOnly(hourInt, scheduledTime.Time.Minute);
+
+        for (var i = 0; i < offsets.Length; i++)
+        {
+            // Get current time in user's timezone
+            var userLocalTime = TimeZoneInfo.ConvertTimeFromUtc(now, userTimeZone);
+            
+            // Calculate the scheduled date/time in user's local timezone
+            var scheduledLocalDateTime = userLocalTime.Date.AddDays(offsets[i])
+                .Add(definedTime.ToTimeSpan());
+            
+            // Convert back to UTC for storage
+            var scheduledUtc = TimeZoneInfo.ConvertTimeToUtc(scheduledLocalDateTime, userTimeZone);
+
+            var schedule = new UserGroupNotificationSchedule
+            {
+                UserId = userId,
+                GroupId = groupId,
+                ScheduledTime = scheduledUtc,
+                Mode = scheduledTime.Mode,
+                OffsetIndex = i,
+                TimeZoneId = scheduledTime.Time.TimeZoneId,
+                UserLocalTime = definedTime,
+                IsSent = false
+            };
+
+            schedules.Add(schedule);
+        }
+
+        await _context.UserGroupNotificationSchedules.AddRangeAsync(schedules);
+        await _context.SaveChangesAsync();
     }
 
     public async Task DeactivateInvalidTokensAsync(List<string> invalidTokens)
@@ -155,4 +199,5 @@ public class NotificationService
             _ => false
         };
     }
+
 }

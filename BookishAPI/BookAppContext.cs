@@ -316,14 +316,28 @@ public class UserGroupNotificationSchedule
     public int Id { get; set; }
     public Guid UserId { get; set; }
     public int GroupId { get; set; }
-    public int CurrentIntervalDays { get; set; }
     public DateTime ScheduledTime { get; set; }
-    public bool IsSent { get; set; } = false;
+    public string? TimeZoneId { get; set; }
     public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
+    public RepetitionMode Mode { get; set; }
+    public int OffsetIndex { get; set; }  // Which offset in the array (0-based)
+    public TimeOnly UserLocalTime { get; set; }
+    public bool IsSent { get; set; }
+    public DateTime? SentAt { get; set; }
 
     // Navigation property
     public SpacedRepetitionGroup Group { get; set; } = null!;
+}
+
+
+
+public enum RepetitionMode
+{
+    LIGHT,
+    STANDARD,
+    INTENSIVE,
+    CRAM
 }
 
 public enum StreakLengthInDays {
