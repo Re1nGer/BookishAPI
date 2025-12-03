@@ -644,6 +644,13 @@ public class UserGoalState
     public int? BooksGoal { get; set; }
     public int? CurrentAmountBooksGoal { get; set; }
     public int? CurrentAmountMinutes { get; set; }
+    public List<BookShortDto> BooksReadWithinCurrentYear { get; set; }
+}
+
+public class BookShortDto
+{
+    public int Id { get; set; }
+    public string ImageUrl { get; set; }
 }
 
 public record UserEvent(long Id, int BookId, string BookName, short Rating, string ImageUrl, DateTime FinishedAt, string? ImageId, string? Memo);
