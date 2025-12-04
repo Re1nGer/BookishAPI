@@ -113,6 +113,7 @@ public class Book
     public DateTime? StartedAt { get; set; }
     public DateTime? FinishedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
+    public DateTime CreatedAt { get; set; }
     public string Description { get; set; }
     public string Author { get; set; }
     public string ImageUrl { get; set; }

@@ -344,6 +344,7 @@ app.MapPost("/book", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, 
         ImageUrl = request.ImageUrl,
         TotalPages = request.TotalPages,
         UserId = Guid.Parse(userId),
+        CreatedAt = DateTime.UtcNow
     };
 
     switch (request.Status)

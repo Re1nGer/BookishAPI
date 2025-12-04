@@ -178,8 +178,37 @@ public static class Users
             .WithName("Get user book goal state")
             .WithSummary("Get user book goal state");
             
+        group.MapGet("goals/years", GetUserYears)
+            .WithName("Get all user years")
+            .WithSummary("Get all user years");
+            
         return group;
     }
+    
+private static async Task<IResult> GetUserYears(
+    ClaimsPrincipal claimsPrincipal,
+    BookAppContext db)
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+    
+    var parsedUserId = Guid.Parse(userId);
+
+    var user = await db.Users.FirstOrDefaultAsync(a => a.Id == parsedUserId);
+
+    if (user is null)
+    {
+        return Results.NotFound("User not found");
+    }
+
+    var years = await db.Books
+        .GroupBy(a => a.CreatedAt.Year)
+        .Select(g => g.Key)
+        .OrderBy(year => year)
+        .ToListAsync();
+
+    return Results.Ok(years);
+}
     
 private static async Task<IResult> GetUserGoalState(
     ClaimsPrincipal claimsPrincipal,
