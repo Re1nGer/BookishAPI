@@ -212,7 +212,8 @@ private static async Task<IResult> GetUserYears(
     
 private static async Task<IResult> GetUserGoalState(
     ClaimsPrincipal claimsPrincipal,
-    BookAppContext db)
+    BookAppContext db,
+    [FromQuery] int? year)
 {
     var userId = claimsPrincipal.Claims
         .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
@@ -226,7 +227,7 @@ private static async Task<IResult> GetUserGoalState(
         return Results.NotFound("User not found");
     }
 
-    var currentYear = new DateTime(DateTime.UtcNow.Year, 1, 1).ToUniversalTime();
+    var currentYear = new DateTime(year ?? DateTime.UtcNow.Year, 1, 1).ToUniversalTime();
     var booksReadWithinCurrentYearCount = await db.Books
         .Where(a => a.Status == BookStatus.Finished && 
                     a.FinishedAt!.Value >= currentYear)
@@ -238,7 +239,9 @@ private static async Task<IResult> GetUserGoalState(
         .Select(a => new BookShortDto()
         {
             Id = a.Id,
-            ImageUrl = a.ImageUrl
+            ImageUrl = a.ImageUrl,
+            Title = a.Title,
+            Author = a.Author
         }).ToListAsync();
 
     var minutesReadWithinToday = await db.ReadingSessions
