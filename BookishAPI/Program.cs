@@ -654,6 +654,7 @@ public class BookShortDto
     public string ImageUrl { get; set; }
     public string Title { get; set; }
     public string Author { get; set; }
+    public DateTime FinishedAt { get; set; }
 }
 
 public record UserEvent(long Id, int BookId, string BookName, short Rating, string ImageUrl, DateTime FinishedAt, string? ImageId, string? Memo);

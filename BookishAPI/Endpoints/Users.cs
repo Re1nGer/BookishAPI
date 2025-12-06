@@ -241,7 +241,8 @@ private static async Task<IResult> GetUserGoalState(
             Id = a.Id,
             ImageUrl = a.ImageUrl,
             Title = a.Title,
-            Author = a.Author
+            Author = a.Author,
+            FinishedAt = a.FinishedAt.Value
         }).ToListAsync();
 
     var minutesReadWithinToday = await db.ReadingSessions
