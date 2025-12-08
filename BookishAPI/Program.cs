@@ -594,7 +594,14 @@ public record SingleNoteDto(
     string BookName,
     int TypeId,
     QuoteDto? Quote,
-    List<CollectionDto> Collections);
+    List<CollectionDto> Collections,
+    List<RepetitionGroupDto>? RepetitionGroups);
+
+public record RepetitionGroupDto
+{
+    public int Id { get; set; }
+    public string Name { get; set; }
+}
 public record CategoryDto(int Id, string Name);
 
 public record AuthorDto(int Id, string Name);

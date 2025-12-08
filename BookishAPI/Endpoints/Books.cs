@@ -104,6 +104,7 @@ public static class Books
             .Include(item => item.RelatedQuote)
             .Include(item => item.Type)
             .Include(item => item.NoteCollections)
+            .Include(item => item.SpacedRepetitionGroups)
             .Where(item => item.BookId == bookId && item.Id == noteId)
             .FirstOrDefaultAsync();
 
@@ -116,7 +117,10 @@ public static class Books
                 ? new QuoteDto(note.RelatedQuote.Id, book.Title, note.RelatedQuote.Content)
                 : null,
             note.NoteCollections
-                .Select(j => new CollectionDto(j.Id, j.Name)).ToList());
+                .Select(j => new CollectionDto(j.Id, j.Name)).ToList(),
+            note.SpacedRepetitionGroups.Select(j => new RepetitionGroupDto() { Id = j.Id, Name = j.Name})
+                .ToList()
+            );
 
         return Results.Ok(result);
         
@@ -192,6 +196,10 @@ public static class Books
         {
             note.SpacedRepetitionGroups.Clear();
             note.SpacedRepetitionGroups = repetitionGroups;
+        }
+        else
+        {
+            note.SpacedRepetitionGroups.Clear();
         }
 
         var quote = await db.Quotes
