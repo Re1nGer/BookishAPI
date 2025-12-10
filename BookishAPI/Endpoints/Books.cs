@@ -345,6 +345,7 @@ public static class Books
         var quote = await db.Quotes
             .Include(item => item.RelatedNotes)
             .Include(item => item.QuoteCollections)
+            .Include(item => item.SpacedRepetitionGroups)
             .FirstOrDefaultAsync(item => item.Id == request.Id && item.BookId == book.Id);
 
         if (quote is null)
@@ -385,6 +386,23 @@ public static class Books
             quote.QuoteCollections = new List<QuoteCollection>();
         }
 
+        if (request.RepetitionGroupIds is not null && request.RepetitionGroupIds.Length > 0)
+        {
+            var repetitionGroups = await db.SpacedRepetitionGroups
+                .Where(item => request.RepetitionGroupIds.Contains(item.Id) && item.UserId == parsedUserId)
+                .ToListAsync();
+
+            if (repetitionGroups.Count > 0)
+            {
+                quote.SpacedRepetitionGroups.Clear();
+                quote.SpacedRepetitionGroups = repetitionGroups;
+            }
+        }
+        else
+        {
+            quote.SpacedRepetitionGroups.Clear();
+        }
+
         db.Quotes.Update(quote);
 
         await db.SaveChangesAsync();
@@ -393,7 +411,7 @@ public static class Books
         
     }
     
-    private static async Task<IResult> CreateBooksQuote(ClaimsPrincipal claimsPrincipal, int bookId, QuoteCreateRequest request, BookAppContext db)
+    private static async Task<IResult> CreateBooksQuote(ClaimsPrincipal claimsPrincipal, BookAppContext db, int bookId, QuoteCreateRequest request)
     {
         var userId = claimsPrincipal.Claims
             .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
@@ -431,6 +449,19 @@ public static class Books
             
             quote.QuoteCollections = quoteCollections;
         }
+        
+        var repetitionGroups = await db.SpacedRepetitionGroups
+            .Where(item => request.RepetitionGroupIds.Contains(item.Id) && item.UserId == parsedUserId)
+            .ToListAsync();
+
+        if (repetitionGroups.Count > 0)
+        {
+            quote.SpacedRepetitionGroups = repetitionGroups;
+        }
+        else
+        {
+            quote.SpacedRepetitionGroups.Clear();
+        }
 
         db.Quotes.Add(quote);
         
@@ -456,6 +487,7 @@ public static class Books
             .Include(item => item.RelatedNotes)
             .ThenInclude(item => item.Type)
             .Include(item => item.QuoteCollections)
+            .Include(item => item.SpacedRepetitionGroups)
             .FirstOrDefaultAsync(item => item.Id == quoteId && item.BookId == book.Id);
 
         var relatedNotes = quote?.RelatedNotes.Select(item =>
@@ -473,7 +505,11 @@ public static class Books
             quote.Content,
             quote.QuoteCollections.Select(item => new
                 CollectionDto(item.Id, item.Name)).ToList(),
-            relatedNotes);
+            relatedNotes,
+            quote.SpacedRepetitionGroups
+                .Select(a => new RepetitionGroupDto() { Id = a.Id, Name = a.Name})
+                .ToList()
+            );
 
         return Results.Ok(result);
         

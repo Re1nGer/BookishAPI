@@ -618,7 +618,7 @@ public record BookNote(int Id, string BookName, string Text, string NoteTypeName
 //TODO: Fill in properties
 public record QuoteDto(int Id, string BookName, string Text);
 
-public record QuoteWithNotesDto(int Id, string BookName, string Text, List<CollectionDto> Collections, List<NoteDto> Notes);
+public record QuoteWithNotesDto(int Id, string BookName, string Text, List<CollectionDto> Collections, List<NoteDto> Notes, List<RepetitionGroupDto> RepetitionGroups);
 public record QuoteDtoWithCount(int Id, int BookId, string BookName, string Text, int NoteCount);
 
 // Error Objects
