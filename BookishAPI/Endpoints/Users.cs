@@ -1577,6 +1577,7 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
 
         var book = await db.Books
             .Where(j => j.Status == BookStatus.Reading)
+            .Where(j => j.UserId == parsedUserId)
             .Include(item => item.Notes)
             .ThenInclude(item => item.Type)
             .Include(item => item.BookCollections)

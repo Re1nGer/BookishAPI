@@ -304,7 +304,7 @@ app.MapPost("/users", async (BookAppContext db, TokenService tokenService, UserR
 
     var tokens = tokenService.GenerateTokens(user.Id);
 
-    return Results.Ok(tokens);
+    return Results.Ok(new { accessToken = tokens.AccessToken, refreshToken = tokens.RefreshToken, userId=user.Id });
 });
 
 app.MapGet("/search/{title}", async (string title, [FromQuery] int? maxResult, GoogleBooksClient client) =>
