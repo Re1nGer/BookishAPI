@@ -700,15 +700,18 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
         return Results.Ok(new { message = "Token registered successfully" });
     }
     
-    private static async Task<IResult> GetRepetitionGroups(ClaimsPrincipal claimsPrincipal, BookAppContext db)
+    private static async Task<IResult> GetRepetitionGroups(ClaimsPrincipal claimsPrincipal, BookAppContext db, string? searchText)
     {
         var userId = claimsPrincipal.Claims
             .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
 
         var parsedUserId = Guid.Parse(userId);
 
+        var searchTextLower = searchText?.ToLower();
+        
         var groups = await db.SpacedRepetitionGroups
             .Where(x => x.UserId == parsedUserId)
+            .Where(x => searchText == null || x.Name.ToLower().Contains(searchTextLower))
             .OrderByDescending(x => x.CreatedAt)
             .Select(x =>
                 new SpaceGroup(
@@ -1320,6 +1323,7 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
         await db.ReadStats.AddAsync(bookStat);
 
         book.CurrentPage = request.Page;
+        book.UpdatedAt = DateTime.UtcNow;
         
         await db.SaveChangesAsync();
         

@@ -30,6 +30,7 @@ public class User
     public int? BookAmountGoalInYear { get; set; }
     public int? PagesReadGoalInYear { get; set; }
     public string? TimeZoneId { get; set; }
+    public bool HasCompletedOnboarding { get; set; }
     public List<NoteType> NoteTypes { get; set; }
     public List<NoteCollection> NoteCollections { get; set; }
     public List<QuoteCollection> QuoteCollections { get; set; }
