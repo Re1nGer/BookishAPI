@@ -78,7 +78,7 @@ public class NotificationSchedulerService : BackgroundService
         {
             _logger.LogWarning($"No active tokens found for User {notification.UserId}");
             // Still mark as sent to avoid retrying
-            //await notificationRepo.MarkNotificationAsSentAsync(notification.ScheduleId);
+            await notificationRepo.MarkNotificationAsSentAsync(notification.ScheduleId);
             return;
         }
 
