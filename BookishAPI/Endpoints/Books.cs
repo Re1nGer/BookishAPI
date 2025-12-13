@@ -458,10 +458,6 @@ public static class Books
         {
             quote.SpacedRepetitionGroups = repetitionGroups;
         }
-        else
-        {
-            quote.SpacedRepetitionGroups.Clear();
-        }
 
         db.Quotes.Add(quote);
         
