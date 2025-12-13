@@ -230,12 +230,12 @@ private static async Task<IResult> GetUserGoalState(
     var currentYear = new DateTime(year ?? DateTime.UtcNow.Year, 1, 1).ToUniversalTime();
     var booksReadWithinCurrentYearCount = await db.Books
         .Where(a => a.Status == BookStatus.Finished && 
-                    a.FinishedAt!.Value >= currentYear)
+                    a.FinishedAt!.Value >= currentYear && a.UserId == parsedUserId)
         .CountAsync();
 
     var booksReadWithinCurrentYear = await db.Books
         .Where(a => a.Status == BookStatus.Finished &&
-                    a.FinishedAt!.Value >= currentYear)
+                    a.FinishedAt!.Value >= currentYear && a.UserId == parsedUserId)
         .Select(a => new BookShortDto()
         {
             Id = a.Id,
