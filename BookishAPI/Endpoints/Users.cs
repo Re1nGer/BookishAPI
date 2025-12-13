@@ -1146,7 +1146,7 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
         return Results.Ok(quotes);
         
     }
-    private static async Task<IResult> GetBookNotes(ClaimsPrincipal claimsPrincipal, BookAppContext db, int id)
+    private static async Task<IResult> GetBookNotes(ClaimsPrincipal claimsPrincipal, BookAppContext db, int id, string? searchText)
     {
         var userId = claimsPrincipal.Claims
             .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
@@ -1164,7 +1164,10 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
             return Results.NotFound();
         }
 
-        var notes = book?.Notes
+        var searchTextLower = searchText?.ToLower();
+
+        var notes = book.Notes
+            .Where(item => searchText == null || item.Content.ToLower().Contains(searchTextLower))
             .Select(item => new BookNote(item.Id, book.Title,
                 item.Content,
                 item.Type.Name,
@@ -1172,7 +1175,7 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
                 item.Type.Icon, item.CreatedAt))
             .ToList();
 
-        return Results.Ok(notes ?? default);
+        return Results.Ok(notes);
     }
     private static async Task<IResult> GetAllBooksNotes(ClaimsPrincipal claimsPrincipal, BookAppContext db)
     {
