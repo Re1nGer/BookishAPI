@@ -125,7 +125,7 @@ public class NotificationService
         var schedules = new List<UserGroupNotificationSchedule>();
         var now = DateTime.UtcNow;
 
-        var offsets = OFFSETS[RepetitionMode.CRAM];
+        var offsets = OFFSETS[scheduledTime.Mode];
         var userTimeZone = TZConvert.GetTimeZoneInfo(scheduledTime.Time.TimeZoneId);;
         
         var hourInt = scheduledTime.Time.Hour;
