@@ -4,7 +4,7 @@ public class NotificationSchedulerService : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<NotificationSchedulerService> _logger;
-    private readonly TimeSpan _pollingInterval = TimeSpan.FromSeconds(30); // Check every minute
+    private readonly TimeSpan _pollingInterval = TimeSpan.FromSeconds(45); // Check every minute
 
     public NotificationSchedulerService(
         IServiceProvider serviceProvider,
@@ -89,10 +89,10 @@ public class NotificationSchedulerService : BackgroundService
             Body = $"Your spaced repetition group '{notification.GroupName}' is ready for review",
             Data = new Dictionary<string, string>
             {
+                { "path", "/(auth)/revise" },
                 { "groupId", notification.GroupId.ToString() },
-                { "userId", notification.UserId.ToString() },
-                { "url", $"test-scheme://revise?groupId={notification.GroupId}&groupName={notification.GroupName}"},
-                { "type", "deep_link" }
+                { "groupName", notification.GroupName },
+                { "userId", notification.UserId.ToString() }
             }
         };
 

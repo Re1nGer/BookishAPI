@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TimeZoneConverter;
 
 namespace BookishAPI;
 
@@ -86,7 +87,8 @@ public class NotificationService
 
         if (schedule != null)
         {
-            schedule.IsSent = true;
+            //schedule.IsSent = true;
+            schedule.SentAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
         }
     }
@@ -123,8 +125,8 @@ public class NotificationService
         var schedules = new List<UserGroupNotificationSchedule>();
         var now = DateTime.UtcNow;
 
-        var offsets = OFFSETS[scheduledTime.Mode];
-        var userTimeZone = TimeZoneInfo.FindSystemTimeZoneById(scheduledTime.Time.TimeZoneId);
+        var offsets = OFFSETS[RepetitionMode.CRAM];
+        var userTimeZone = TZConvert.GetTimeZoneInfo(scheduledTime.Time.TimeZoneId);;
         
         var hourInt = scheduledTime.Time.Hour;
         
@@ -160,7 +162,8 @@ public class NotificationService
                 OffsetIndex = i,
                 TimeZoneId = scheduledTime.Time.TimeZoneId,
                 UserLocalTime = definedTime,
-                IsSent = false
+                IsSent = false,
+                CreatedAt = DateTime.UtcNow,
             };
 
             schedules.Add(schedule);
