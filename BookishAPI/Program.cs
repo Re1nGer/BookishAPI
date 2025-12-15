@@ -770,3 +770,9 @@ public class CreateReadingSessionRequest
     public int PagesRead { get; set; }
 }
 
+public class GoogleSignInRequest
+{
+    public string IdToken { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string Username { get; set; } = string.Empty;
+}

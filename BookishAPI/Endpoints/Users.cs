@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Google.Apis.Auth;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -182,8 +183,85 @@ public static class Users
             .WithName("Get all user years")
             .WithSummary("Get all user years");
             
+        group.MapPost("sign-in/google", SignInWithGoogle)
+            .WithName("Sign in with Google")
+            .WithSummary("Sign in with Google");
+            
         return group;
     }
+    
+private static async Task<IResult> SignInWithGoogle(
+    BookAppContext db,
+    TokenService tokenService,
+    GoogleSignInRequest request,
+    IConfiguration configuration)
+{
+    if (string.IsNullOrEmpty(request.IdToken))
+    {
+        return Results.BadRequest(new { Error = "IdToken is required" });
+    }
+
+    if (string.IsNullOrEmpty(request.Email))
+    {
+        return Results.BadRequest(new { Error = "Email is required" });
+    }
+
+    if (string.IsNullOrEmpty(request.Username))
+    {
+        return Results.BadRequest(new { Error = "Username is required" });
+    }
+
+    GoogleJsonWebSignature.Payload payload;
+    try
+    {
+        var settings = new GoogleJsonWebSignature.ValidationSettings
+        {
+            Audience = new[] { configuration["Google:WebClientId"] }
+        };
+
+        payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken, settings);
+    }
+    catch (InvalidJwtException)
+    {
+        return Results.BadRequest(new { Error = "Invalid Google token" });
+    }
+
+    // Verify that the email matches the token
+    if (payload.Email != request.Email)
+    {
+        return Results.BadRequest(new { Error = "Email does not match token" });
+    }
+
+    var user = await db.Users.FirstOrDefaultAsync(u => u.Email == payload.Email);
+
+    if (user == null)
+    {
+        var existingUser = await db.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+        if (existingUser != null)
+        {
+            return Results.BadRequest(new { Error = "Email already registered with different method" });
+        }
+
+        user = new User
+        {
+            Email = request.Email,
+            Username = request.Username,
+            Password = null
+        };
+
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+    }
+
+    var tokens = tokenService.GenerateTokens(user.Id);
+
+    return Results.Ok(new
+    {
+        accessToken = tokens.AccessToken,
+        refreshToken = tokens.RefreshToken,
+        userId = user.Id
+    });
+}
     
 private static async Task<IResult> GetUserYears(
     ClaimsPrincipal claimsPrincipal,
