@@ -479,7 +479,9 @@ private static async Task<IResult> UpdateUserPreferences(
         
         user.SelectedBooks?.AddRange(selectedBooks);
     }
-    
+
+    user.IsNotificationsEnabled = request.IsNotificationsEnabled;
+
     await db.SaveChangesAsync();
     
     return Results.Ok(new

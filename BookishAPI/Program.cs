@@ -31,7 +31,9 @@ builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<FirebaseService>();
 builder.Services.AddScoped<StripeService>();
+builder.Services.AddScoped<StreakService>();
 //builder.Services.AddHostedService<NotificationSchedulerService>();
+//builder.Services.AddHostedService<DailyReminderJob>();
 
 builder.Services.Configure<JsonOptions>(options =>
 {
@@ -375,6 +377,7 @@ app.MapPost("/book", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, 
 }).RequireAuthorization();
 
 //not used yet
+/*
 app.MapPut("/users/settings", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, UserSettingsUpdateRequest request) =>
 {
     var userId = claimsPrincipal.Claims
@@ -387,13 +390,14 @@ app.MapPut("/users/settings", async (ClaimsPrincipal claimsPrincipal, BookAppCon
     if (user is null)
         return Results.NotFound();
 
-    user.Settings.NotificationsEnabled = request.NotificationsEnabled;
+    //user.Settings.NotificationsEnabled = request.NotificationsEnabled;
     user.Settings.TimeFormat = request.TimeFormat;
 
     await db.SaveChangesAsync();
     
     return Results.NoContent();
 });
+*/
 
 //not used
 app.MapPost("/users/{id}/verify-email", async (Guid id, string token, BookAppContext db) =>
@@ -719,6 +723,7 @@ public class UpdateUserPreferencesRequest
     public DailyReminderAt? DailyReminderAt { get; set; }
     public TimeLengthInMinutes? TimeLengthInMinutes { get; set; }
     public StreakLengthInDays? StreakLengthInDays { get; set; }
+    public bool IsNotificationsEnabled { get; set; }
     public List<int> InterestAreaIds { get; set; } = new();
     public List<int> ReadingPurposeIds { get; set; } = new();
     public List<int> SelectedBookIds { get; set; } = new();

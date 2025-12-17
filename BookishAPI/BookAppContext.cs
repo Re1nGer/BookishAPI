@@ -27,10 +27,12 @@ public class User
     public TimeLengthInMinutes TimeLengthInMinutes { get; set; }
     public TimeOnly DailyReminderAt { get; set; }
     public bool IsPremiumUser { get; set; }
+    public bool IsNotificationsEnabled { get; set; }
     public int? BookAmountGoalInYear { get; set; }
     public int? PagesReadGoalInYear { get; set; }
     public string? TimeZoneId { get; set; }
     public bool HasCompletedOnboarding { get; set; }
+    public UserStreak? Streak { get; set; }
     public List<NoteType> NoteTypes { get; set; }
     public List<NoteCollection> NoteCollections { get; set; }
     public List<QuoteCollection> QuoteCollections { get; set; }
@@ -53,6 +55,7 @@ public class InterestArea
     public string Name { get; set; }
     public List<User> Users { get; set; }
 }
+
 
 public class SelectedBook
 {
@@ -274,9 +277,6 @@ public class UserSettings
     public int Id { get; set; }
     public Guid UserId { get; set; }
     public User User { get; set; }
-    public bool NotificationsEnabled { get; set; }
-    public bool DailyReminderEnabled { get; set; }
-    public TimeSpan DailyReminderTime { get; set; }
     public TimeFormat TimeFormat { get; set; }
 }
 
@@ -333,6 +333,23 @@ public class UserGroupNotificationSchedule
     public SpacedRepetitionGroup Group { get; set; } = null!;
 }
 
+public class UserStreak
+{
+    public int Id { get; set; }
+    public Guid UserId { get; set; }
+    public User User { get; set; }
+    
+    public int CurrentStreak { get; set; }
+    public int LongestStreak { get; set; }
+    public DateOnly? LastActivityDate { get; set; } // Date in user's timezone
+    public DateTime? LastActivityUtc { get; set; }  // For queries
+    
+    // Today's progress (reset daily)
+    public int MinutesReadToday { get; set; }
+    public int PagesReadToday { get; set; }
+    public DateOnly? TodayDate { get; set; } // Which "today" this refers to
+}
+
 
 
 public enum RepetitionMode
@@ -386,6 +403,7 @@ public class BookAppContext : DbContext
     public DbSet<InterestArea> InterestAreas { get; set; }
     public DbSet<SelectedBook> SelectedBooks { get; set; }
     public DbSet<ReadingPurpose> ReadingPurposes { get; set; }
+    public DbSet<UserStreak> UserStreaks { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
