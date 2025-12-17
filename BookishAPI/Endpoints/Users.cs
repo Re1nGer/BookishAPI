@@ -186,10 +186,34 @@ public static class Users
         group.MapPost("sign-in/google", SignInWithGoogle)
             .WithName("Sign in with Google")
             .WithSummary("Sign in with Google");
+        
+        group.MapGet("streak", GetCurrentUserStreak)
+            .WithName("Get current user streak")
+            .WithSummary("Get current user streak");
             
         return group;
     }
+
+
+private static async Task<IResult> GetCurrentUserStreak(
+        BookAppContext db,
+        ClaimsPrincipal claimsPrincipal,
+        StreakService streakService)
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
     
+    var parsedUserId = Guid.Parse(userId);
+
+    var user = await db.Users.FirstOrDefaultAsync(a => a.Id == parsedUserId);
+
+    if (user is null)
+    {
+        return Results.NotFound("User not found");
+    }
+
+    return Results.Ok(await streakService.GetStreakStatusAsync(parsedUserId));
+}
 private static async Task<IResult> SignInWithGoogle(
     BookAppContext db,
     TokenService tokenService,

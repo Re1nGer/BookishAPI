@@ -310,11 +310,12 @@ public class DailyReminderJob : BackgroundService
 public record StreakStatus
 {
     public int CurrentStreak { get; init; }
-    public int LongestStreak { get; init; }
+    public int NotesCount { get; set; }
     public int TargetDays { get; init; }
     public int MinutesToday { get; init; }
     public int GoalMinutes { get; init; }
     public double Progress { get; init; }
     public bool IsGoalMetToday { get; init; }
     public bool IsAtRisk { get; init; }
+    public int PagesReadToday { get; set; }
 }
