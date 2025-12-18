@@ -1313,7 +1313,7 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
         return Results.Ok(bookQuotes);
         
     }
-    private static async Task<IResult> GetBookQuotes(ClaimsPrincipal claimsPrincipal, BookAppContext db, int id)
+    private static async Task<IResult> GetBookQuotes(ClaimsPrincipal claimsPrincipal, BookAppContext db, int id, string? searchText)
     {
         var userId = claimsPrincipal.Claims
             .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
@@ -1332,7 +1332,10 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
             return Results.NotFound();
         }
 
+        var searchTextToLower = searchText?.ToLower();
+
         var quotes = book.Quotes
+            .Where(item => searchText == null || item.Content.ToLower().Contains(searchTextToLower))
             .Select(item => new QuoteDtoWithCount(
                 item.Id,
                 book.Id,
