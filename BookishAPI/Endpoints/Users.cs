@@ -1291,7 +1291,15 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
         var collections = await db.Books
             .Where(item => item.UserId == parsedUserId)
             .OrderByDescending(item => item.Id)
-            .Select(item => new NoteWithCountDto(item.Id, item.ImageUrl, item.Title, item.Author, item.Notes.Count))
+            .Select(item =>
+                new NoteWithCountDto(
+                    item.Id,
+                    item.ImageUrl,
+                    item.Title,
+                    item.Author,
+                    item.Notes.Count,
+                    string.IsNullOrEmpty(item.ImageUrl) ? new BookCover(item.TitleColor!, item.BackgroundColor!) : null
+                    ))
             .ToListAsync();
 
         return Results.Ok(collections);
@@ -1306,8 +1314,15 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
         var bookQuotes = await db.Books
             .Where(item => item.UserId == parsedUserId)
             .OrderByDescending(item => item.Id)
-            .Select(item => new BookQuoteWithCountDto(item.Id,
-                item.ImageUrl, item.Title, item.Author, item.Quotes.Count))
+            .Select(item =>
+                new BookQuoteWithCountDto(
+                item.Id,
+                item.ImageUrl,
+                item.Title,
+                item.Author,
+                item.Quotes.Count,
+                string.IsNullOrEmpty(item.ImageUrl) ? new BookCover(item.TitleColor!, item.BackgroundColor!) : null
+                ))
             .ToListAsync();
 
         return Results.Ok(bookQuotes);
