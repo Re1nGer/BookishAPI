@@ -1638,6 +1638,8 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
             return Results.NotFound("Book not found");
         }
 
+        var hasCover = string.IsNullOrEmpty(book.ImageUrl);
+        
         var lastSession = book.ReadingSessions.MaxBy(a => a.EndTime);
 
         var bookDto = new BookDto(
@@ -1674,7 +1676,8 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
                 EndPage = lastSession.EndPage,
                 DurationInSeconds = lastSession.DurationInSeconds,
                 PagesRead = lastSession.PagesRead
-            } : null);
+            } : null,
+            Cover: hasCover ? new BookCover(book.TitleColor!, book.BackgroundColor!) : null);
 
     return Results.Ok(bookDto);
     }
@@ -1702,6 +1705,8 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
             .FirstOrDefaultAsync();
 
         if (book is null) return Results.NotFound("The book is not found");
+
+        var hasCover = string.IsNullOrEmpty(book.ImageUrl);
 
         var bookDto = new BookDto(
             Id: book.Id,
@@ -1731,7 +1736,8 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
                 .ToList(),
             Quotes: book.Quotes.Select(item =>
                     new QuoteDto(item.Id, book.Title, item.Content))
-                .ToList());
+                .ToList(),
+            Cover: hasCover ? new BookCover(book.TitleColor!, book.BackgroundColor!) : null);
 
         return Results.Ok(bookDto);
     }

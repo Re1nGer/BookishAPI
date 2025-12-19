@@ -123,6 +123,8 @@ public class Book
     public string ImageUrl { get; set; }
     public string? FinalThoughts { get; set; }
     public string? FinalThoughtsImage { get; set; }
+    public string? TitleColor { get; set; }
+    public string? BackgroundColor { get; set; }
     public BookStatus Status { get; set; }
     public List<BookCollection> BookCollections { get; set; }
     public List<Genre> Genres { get; set; }

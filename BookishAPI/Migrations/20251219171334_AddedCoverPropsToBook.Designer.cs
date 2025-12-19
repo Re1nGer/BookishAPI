@@ -3,6 +3,7 @@ using System;
 using BookishAPI;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BookishAPI.Migrations
 {
     [DbContext(typeof(BookAppContext))]
-    partial class BookAppContextModelSnapshot : ModelSnapshot
+    [Migration("20251219171334_AddedCoverPropsToBook")]
+    partial class AddedCoverPropsToBook
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

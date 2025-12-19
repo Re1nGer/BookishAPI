@@ -349,6 +349,12 @@ app.MapPost("/book", async (ClaimsPrincipal claimsPrincipal, BookAppContext db, 
         CreatedAt = DateTime.UtcNow
     };
 
+    if (request.Cover is not null)
+    {
+        book.BackgroundColor = request.Cover.BackgroundColor;
+        book.TitleColor = request.Cover.TitleColor;
+    }
+
     switch (request.Status)
     {
         case (int)BookStatus.Reading:
@@ -527,8 +533,21 @@ public record BookAddRequest(
         string[]? Categories,
         int[] CollectionIds,
         string? ImageUrl,
-        int Status
+        int Status,
+        BookCover? Cover
 );
+
+public class BookCover
+{
+    public BookCover(string titleColor, string backgroundColor)
+    {
+        TitleColor = titleColor;
+        BackgroundColor = backgroundColor;
+    }
+
+    public string TitleColor { get; set; }
+    public string BackgroundColor { get; set; }
+}
 public record QuoteCreateRequest(string Content, int[]? CollectionIds, int[]? RepetitionGroupIds, int[]? NoteIds);
 public record QuoteModifyRequest(int Id, string Content, int[]? CollectionIds, int[]? RepetitionGroupIds, int[]? NoteIds);
 public record NoteCreateRequest(
@@ -575,6 +594,7 @@ public record BookDto(
     List<NoteDto> Notes,
     List<CollectionDto> Collections,
     List<QuoteDto> Quotes,
+    BookCover? Cover,
     ReadingSessionDto? Session = null
 );
 
