@@ -265,12 +265,41 @@ private static async Task<IResult> SignInWithGoogle(
         {
             return Results.BadRequest(new { Error = "Email already registered with different method" });
         }
+        
+        var defaultNoteTypes = new List<NoteType>
+        {
+            new NoteType()
+            {
+                Name = "Thought",
+                Color = "#519999",
+                Icon = "👽",
+            },
+            new NoteType()
+            {
+                Name = "Question",
+                Color = "#03679A",
+                Icon = "🔍",
+            },
+            new NoteType()
+            {
+                Name = "Summary",
+                Color = "#EEB63C",
+                Icon = "👻",
+            },
+            new NoteType()
+            {
+                Name = "Fact",
+                Color = "#F8846A",
+                Icon = "💡",
+            }
+        };
 
         user = new User
         {
             Email = request.Email,
             Username = request.Username,
-            Password = null
+            Password = null,
+            NoteTypes = defaultNoteTypes
         };
 
         db.Users.Add(user);
