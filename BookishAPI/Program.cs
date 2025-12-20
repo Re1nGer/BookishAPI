@@ -288,6 +288,34 @@ app.MapPost("/users", async (BookAppContext db, TokenService tokenService, UserR
         errors.Add("password", passwordError);
     }
 
+    var defaultNoteTypes = new List<NoteType>
+    {
+        new NoteType()
+        {
+            Name = "Thought",
+            Color = "#519999",
+            Icon = "👽",
+        },
+        new NoteType()
+        {
+            Name = "Question",
+            Color = "#03679A",
+            Icon = "🔍",
+        },
+        new NoteType()
+        {
+            Name = "Summary",
+            Color = "#EEB63C",
+            Icon = "👻",
+        },
+        new NoteType()
+        {
+            Name = "Fact",
+            Color = "#F8846A",
+            Icon = "💡",
+        }
+    };
+
     if (errors.Count != 0)
     {
         return Results.BadRequest(errors);
@@ -298,6 +326,7 @@ app.MapPost("/users", async (BookAppContext db, TokenService tokenService, UserR
         Username = request.Username,
         Email = request.Email,
         Password = PasswordHasher.HashPassword(request.Password),
+        NoteTypes = defaultNoteTypes
     };
 
     db.Users.Add(user);
