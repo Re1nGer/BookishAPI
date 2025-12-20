@@ -344,7 +344,8 @@ private static async Task<IResult> GetUserGoalState(
             ImageUrl = a.ImageUrl,
             Title = a.Title,
             Author = a.Author,
-            FinishedAt = a.FinishedAt.Value
+            FinishedAt = a.FinishedAt.Value,
+            Cover = string.IsNullOrEmpty(a.ImageUrl) ? new BookCover(a.TitleColor!, a.BackgroundColor!) : null
         }).ToListAsync();
 
     var minutesReadWithinToday = await db.ReadingSessions
