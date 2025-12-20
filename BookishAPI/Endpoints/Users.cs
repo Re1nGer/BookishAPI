@@ -943,6 +943,17 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
                 BooksRead = g.Count()
             })
             .ToListAsync();
+        
+        var sessionStats = await db.ReadingSessions
+            .Where(item => item.Book.UserId == parsedUserId)
+            .Where(j => from == null || j.EndTime.Date >= from.Value.Date)
+            .Where(j => to == null || j.EndTime.Date <= to.Value.Date)
+            .Select(g => new SessionStat
+            {
+                Date = g.EndTime.ToString("yyyy-MM-dd"),
+                SecondsRead = g.DurationInSeconds
+            })
+            .ToListAsync();
 
         var notesSaved = await db.Notes
             .Where(j => from == null || j.CreatedAt >= from.Value)
@@ -992,13 +1003,17 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
             .ToArrayAsync();
 
         
-        return Results.Ok(new UserStat(
-            readStats,
-            bookReadStats,
-            quotesSaved,
-            notesSaved,
-            topCategories,
-            topAuthors));
+        return Results.Ok(
+            new UserStat(
+                readStats,
+                bookReadStats,
+                quotesSaved,
+                notesSaved,
+                topCategories,
+                topAuthors,
+                sessionStats
+            )
+        );
     }
     
     private static async Task<IResult> GetUserReadEvents(ClaimsPrincipal claimsPrincipal, BookAppContext db, [FromQuery] DateTime? day)

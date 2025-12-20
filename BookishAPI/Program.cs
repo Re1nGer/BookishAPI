@@ -725,7 +725,8 @@ public record UserStat(
     long QuotesSaved,
     long NotesSaved,
     object TopCategories,
-    BookAuthor[] TopAuthors);
+    BookAuthor[] TopAuthors,
+    List<SessionStat> ReadingSessionStat);
 
 public record BookCategory(int Id, string Name);
 public record BookAuthor(int Id, string Name);
@@ -742,6 +743,12 @@ public class Stat
 {
     public string Date { get; set; }
     public long PagesRead { get; set; }
+}
+
+public class SessionStat
+{
+    public string Date { get; set; }
+    public long SecondsRead { get; set; }
 }
 
 public class DueNotification
