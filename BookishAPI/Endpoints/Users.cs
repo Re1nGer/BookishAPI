@@ -184,6 +184,7 @@ public static class Users
             .WithSummary("Get all user years");
             
         group.MapPost("sign-in/google", SignInWithGoogle)
+            .AllowAnonymous()
             .WithName("Sign in with Google")
             .WithSummary("Sign in with Google");
         
@@ -895,7 +896,7 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
             
             await db.SaveChangesAsync();
             
-            //await notificationService.SaveNotificationSchedulesAsync(parsedUserId, group.Id, request);
+            await notificationService.SaveNotificationSchedulesAsync(parsedUserId, group.Id, request);
 
             await transaction.CommitAsync();
         }
