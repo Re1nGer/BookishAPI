@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using System.Text;
+using System.Text.Json;
 using Google.Apis.Auth;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -203,9 +205,242 @@ public static class Users
         group.MapGet("preferences", GetUserPreferences)
             .WithName("Get all user preferences")
             .WithSummary("Delete all user preferences");
+
+        group.MapGet("export", ExportUserData)
+            .WithName("ExportUserData")
+            .WithDescription("Export all available user data");
             
         return group;
     }
+    
+private static async Task<IResult> ExportUserData(
+    BookAppContext db,
+    ClaimsPrincipal claimsPrincipal)
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+    
+    if (string.IsNullOrEmpty(userId))
+        return Results.Unauthorized();
+        
+    var parsedUserId = Guid.Parse(userId);
+
+    var user = await db.Users
+        .AsNoTracking()
+        .Where(u => u.Id == parsedUserId)
+        .Select(u => new ExportedUserData
+        {
+            // Basic user info
+            Profile = new ExportedProfile
+            {
+                Id = u.Id,
+                Username = u.Username,
+                Email = u.Email,
+                IsEmailVerified = u.IsEmailVerified,
+                IsPremiumUser = u.IsPremiumUser,
+                IsNotificationsEnabled = u.IsNotificationsEnabled,
+                TimeZoneId = u.TimeZoneId,
+                DailyReminderAt = u.DailyReminderAt,
+                BookAmountGoalInYear = u.BookAmountGoalInYear,
+                PagesReadGoalInYear = u.PagesReadGoalInYear,
+                HasCompletedOnboarding = u.HasCompletedOnboarding
+            },
+            
+            // Settings
+            Settings = u.Settings == null ? null : new ExportedSettings
+            {
+                TimeFormat = u.Settings.TimeFormat.ToString()
+            },
+            
+            // Streak
+            Streak = u.Streak == null ? null : new ExportedStreak
+            {
+                CurrentStreak = u.Streak.CurrentStreak,
+                LongestStreak = u.Streak.LongestStreak,
+                LastActivityDate = u.Streak.LastActivityDate,
+                MinutesReadToday = u.Streak.MinutesReadToday,
+                PagesReadToday = u.Streak.PagesReadToday
+            },
+            
+            // Interest areas
+            InterestAreas = u.InterestAreas.Select(ia => ia.Name).ToList(),
+            
+            // Reading purposes
+            ReadingPurposes = u.ReadingPurposes.Select(rp => rp.Name).ToList(),
+            
+            // Selected books from onboarding
+            SelectedBooks = u.SelectedBooks.Select(sb => new ExportedSelectedBook
+            {
+                Name = sb.Name,
+                ImageUrl = sb.ImageUrl
+            }).ToList()
+        })
+        .FirstOrDefaultAsync();
+
+    if (user is null)
+    {
+        return Results.NotFound("User not found");
+    }
+
+    // Get books with related data
+    user.Books = await db.Books
+        .AsNoTracking()
+        .Where(b => b.UserId == parsedUserId)
+        .Select(b => new ExportedBook
+        {
+            Title = b.Title,
+            Author = b.Author,
+            Description = b.Description,
+            ImageUrl = b.ImageUrl,
+            Status = b.Status.ToString(),
+            CurrentPage = b.CurrentPage,
+            TotalPages = b.TotalPages,
+            StartedAt = b.StartedAt,
+            FinishedAt = b.FinishedAt,
+            CreatedAt = b.CreatedAt,
+            FinalThoughts = b.FinalThoughts,
+            Genres = b.Genres.Select(g => g.Name).ToList(),
+            Notes = b.Notes.Select(n => new ExportedNote
+            {
+                Content = n.Content,
+                CreatedAt = n.CreatedAt,
+                TypeName = n.Type.Name,
+                Images = n.NoteImages.Select(ni => ni.ImageUrl).ToList()
+            }).ToList(),
+            Quotes = b.Quotes.Select(q => new ExportedQuote
+            {
+                Content = q.Content,
+                CreatedAt = q.CreatedAt
+            }).ToList(),
+            ReadingSessions = b.ReadingSessions.Select(rs => new ExportedReadingSession
+            {
+                EndTime = rs.EndTime,
+                EndPage = rs.EndPage,
+                PagesRead = rs.PagesRead,
+                DurationInSeconds = rs.DurationInSeconds
+            }).ToList()
+        })
+        .ToListAsync();
+
+    // Get collections
+    user.BookCollections = await db.BookCollections
+        .AsNoTracking()
+        .Where(bc => bc.UserId == parsedUserId)
+        .Select(bc => new ExportedBookCollection
+        {
+            Name = bc.Name,
+            BookTitles = bc.Books.Select(b => b.Title).ToList()
+        })
+        .ToListAsync();
+
+    user.NoteCollections = await db.NoteCollections
+        .AsNoTracking()
+        .Where(nc => nc.UserId == parsedUserId)
+        .Select(nc => new ExportedNoteCollection
+        {
+            Name = nc.Name,
+            Notes = nc.Notes.Select(n => new ExportedNoteReference
+            {
+                BookTitle = n.Book.Title,
+                Content = n.Content
+            }).ToList()
+        })
+        .ToListAsync();
+
+    user.QuoteCollections = await db.QuoteCollections
+        .AsNoTracking()
+        .Where(qc => qc.UserId == parsedUserId)
+        .Select(qc => new ExportedQuoteCollection
+        {
+            Name = qc.Name,
+            Quotes = qc.Quotes.Select(q => new ExportedQuoteReference
+            {
+                BookTitle = q.Book.Title,
+                Content = q.Content
+            }).ToList()
+        })
+        .ToListAsync();
+
+    // Get spaced repetition groups
+    user.SpacedRepetitionGroups = await db.SpacedRepetitionGroups
+        .AsNoTracking()
+        .Where(sr => sr.UserId == parsedUserId)
+        .Select(sr => new ExportedSpacedRepetitionGroup
+        {
+            Name = sr.Name,
+            IsActive = sr.IsActive,
+            Mode = sr.Schedules.FirstOrDefault() != null 
+                ? sr.Schedules.First().Mode.ToString() 
+                : null,
+            CreatedAt = sr.CreatedAt,
+            Notes = sr.Notes.Select(n => n.Content).ToList(),
+            Quotes = sr.Quotes.Select(q => q.Content).ToList()
+        })
+        .ToListAsync();
+
+    // Get goals
+    user.Goals = await db.Goals
+        .AsNoTracking()
+        .Where(g => g.UserId == parsedUserId)
+        .Select(g => new ExportedGoal
+        {
+            Year = g.Year,
+            Type = g.Type.ToString(),
+            Period = g.Period.ToString(),
+            Target = g.Target,
+            TargetBooks = g.TargetBooks,
+            CompletedBooks = g.CompletedBooks
+        })
+        .ToListAsync();
+
+    // Get read events
+    user.ReadEvents = await db.ReadEvents
+        .AsNoTracking()
+        .Where(re => re.UserId == parsedUserId)
+        .Select(re => new ExportedReadEvent
+        {
+            BookTitle = re.Book.Title,
+            CreatedAt = re.CreatedAt,
+            Rating = re.Rating,
+            Memo = re.Memo
+        })
+        .ToListAsync();
+
+    // Get read stats
+    user.ReadStats = await db.ReadStats
+        .AsNoTracking()
+        .Where(rs => rs.UserId == parsedUserId)
+        .Select(rs => new ExportedReadStat
+        {
+            BookTitle = rs.Book.Title,
+            ReadAt = rs.ReadAt,
+            PageNumber = rs.PageNumber
+        })
+        .ToListAsync();
+
+    // Add export metadata
+    user.ExportMetadata = new ExportMetadata
+    {
+        ExportedAt = DateTime.UtcNow,
+        AppName = "Bookish",
+        Version = "1.0"
+    };
+
+    var jsonOptions = new JsonSerializerOptions
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
+    var json = JsonSerializer.Serialize(user, jsonOptions);
+    var bytes = Encoding.UTF8.GetBytes(json);
+
+    return Results.File(
+        bytes,
+        contentType: "application/json",
+        fileDownloadName: $"bookish-export-{DateTime.UtcNow:yyyy-MM-dd}.json"
+    );
+}
     
 private static async Task<IResult> GetUserPreferences(
         BookAppContext db,
