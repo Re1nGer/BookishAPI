@@ -196,8 +196,35 @@ public static class Users
             .WithName("Delete all user data")
             .WithSummary("Delete all user data");
             
+        group.MapGet("preferences", GetUserPreferences)
+            .WithName("Get all user preferences")
+            .WithSummary("Delete all user preferences");
+            
         return group;
     }
+    
+private static async Task<IResult> GetUserPreferences(
+        BookAppContext db,
+        ClaimsPrincipal claimsPrincipal)
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+    
+    var parsedUserId = Guid.Parse(userId);
+
+    var user = await db.Users
+        .Include(item => item.ReadingPurposes)
+        .FirstOrDefaultAsync(a => a.Id == parsedUserId);
+
+    if (user is null)
+    {
+        return Results.NotFound("User not found");
+    }
+
+    var p = user.ReadingPurposes?.Select(item => item.Id).ToList();
+
+    return Results.Ok(p);
+}
 
 private static async Task<IResult> DeleteUser(
     BookAppContext db,
@@ -631,14 +658,11 @@ private static async Task<IResult> UpdateUserPreferences(
         user.TimeZoneId = request.DailyReminderAt.TimeZoneId;
     }
     
-    // Clear existing preferences
-    user.InterestAreas?.Clear();
-    user.ReadingPurposes?.Clear();
-    user.SelectedBooks?.Clear();
     
     // Add interest areas
     if (request.InterestAreaIds.Any())
     {
+        user.InterestAreas?.Clear();
         var interestAreas = await db.InterestAreas
             .Where(ia => request.InterestAreaIds.Contains(ia.Id))
             .ToListAsync();
@@ -649,6 +673,7 @@ private static async Task<IResult> UpdateUserPreferences(
     // Add reading purposes
     if (request.ReadingPurposeIds.Any())
     {
+        user.ReadingPurposes?.Clear();
         var readingPurposes = await db.ReadingPurposes
             .Where(rp => request.ReadingPurposeIds.Contains(rp.Id))
             .ToListAsync();
@@ -659,6 +684,7 @@ private static async Task<IResult> UpdateUserPreferences(
     // Add reading purposes
     if (request.SelectedBookIds.Any())
     {
+        user.SelectedBooks?.Clear();
         var selectedBooks = await db.SelectedBooks
             .Where(rp => request.SelectedBookIds.Contains(rp.Id))
             .ToListAsync();
@@ -666,7 +692,10 @@ private static async Task<IResult> UpdateUserPreferences(
         user.SelectedBooks?.AddRange(selectedBooks);
     }
 
-    user.IsNotificationsEnabled = request.IsNotificationsEnabled;
+    if (request.IsNotificationsEnabled is not null)
+    {
+        user.IsNotificationsEnabled = request.IsNotificationsEnabled.Value;
+    }
 
     await db.SaveChangesAsync();
     
