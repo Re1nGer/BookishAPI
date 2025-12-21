@@ -194,7 +194,7 @@ app.MapPost("/login", async (LoginRequest request, BookAppContext db, TokenServi
     
     if (user is null)
     {
-        return Results.NotFound(new { Error = new { Email = "This email is not signed up!" }  });
+        return Results.NotFound(new { Error = new { Email = "The user doesn't exist" }  });
     }
 
     var tokens = tokenService.GenerateTokens(user.Id);

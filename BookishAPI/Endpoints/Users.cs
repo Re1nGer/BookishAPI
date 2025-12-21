@@ -191,9 +191,140 @@ public static class Users
         group.MapGet("streak", GetCurrentUserStreak)
             .WithName("Get current user streak")
             .WithSummary("Get current user streak");
+        
+        group.MapDelete("me", DeleteUser)
+            .WithName("Delete all user data")
+            .WithSummary("Delete all user data");
             
         return group;
     }
+
+private static async Task<IResult> DeleteUser(
+    BookAppContext db,
+    ClaimsPrincipal claimsPrincipal)
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+    
+    if (string.IsNullOrEmpty(userId))
+        return Results.Unauthorized();
+        
+    var parsedUserId = Guid.Parse(userId);
+
+    var user = await db.Users.FirstOrDefaultAsync(a => a.Id == parsedUserId);
+
+    if (user is null)
+    {
+        return Results.NotFound("User not found");
+    }
+
+    await using var transaction = await db.Database.BeginTransactionAsync();
+    
+    try
+    {
+        // Get all book IDs for nested deletes
+        var bookIds = await db.Books
+            .Where(b => b.UserId == parsedUserId)
+            .Select(b => b.Id)
+            .ToListAsync();
+
+        await db.Notes
+            .Where(n => bookIds.Contains(n.BookId))
+            .ExecuteDeleteAsync();
+        
+        await db.Quotes
+            .Where(q => bookIds.Contains(q.BookId))
+            .ExecuteDeleteAsync();
+        
+        await db.ReadingSessions
+            .Where(rs => bookIds.Contains(rs.BookId))
+            .ExecuteDeleteAsync();
+        
+        await db.ReadStats
+            .Where(rs => rs.UserId == parsedUserId)
+            .ExecuteDeleteAsync();
+        
+        await db.ReadEvents
+            .Where(re => re.UserId == parsedUserId)
+            .ExecuteDeleteAsync();
+
+        // Delete collections
+        await db.BookCollections
+            .Where(bc => bc.UserId == parsedUserId)
+            .ExecuteDeleteAsync();
+        
+        await db.NoteCollections
+            .Where(nc => nc.UserId == parsedUserId)
+            .ExecuteDeleteAsync();
+        
+        await db.QuoteCollections
+            .Where(qc => qc.UserId == parsedUserId)
+            .ExecuteDeleteAsync();
+
+        // Delete spaced repetition (schedules first, then groups)
+        await db.UserGroupNotificationSchedules
+            .Where(s => s.UserId == parsedUserId)
+            .ExecuteDeleteAsync();
+        
+        await db.SpacedRepetitionGroups
+            .Where(sr => sr.UserId == parsedUserId)
+            .ExecuteDeleteAsync();
+
+        // Delete other user data
+        await db.Goals
+            .Where(g => g.UserId == parsedUserId)
+            .ExecuteDeleteAsync();
+        
+        await db.NoteTypes
+            .Where(nt => nt.UserId == parsedUserId)
+            .ExecuteDeleteAsync();
+        
+        await db.UserSettings
+            .Where(us => us.UserId == parsedUserId)
+            .ExecuteDeleteAsync();
+        
+        await db.VerificationCodes
+            .Where(vc => vc.UserId == parsedUserId)
+            .ExecuteDeleteAsync();
+        
+        await db.UserPushTokens
+            .Where(pt => pt.UserId == parsedUserId)
+            .ExecuteDeleteAsync();
+        
+        await db.NotificationLogs
+            .Where(nl => nl.UserId == parsedUserId)
+            .ExecuteDeleteAsync();
+        
+        await db.UserStreaks
+            .Where(us => us.UserId == parsedUserId)
+            .ExecuteDeleteAsync();
+
+        // Delete books
+        await db.Books
+            .Where(b => b.UserId == parsedUserId)
+            .ExecuteDeleteAsync();
+
+        // Disable the user and clear PII
+        await db.Users
+            .Where(u => u.Id == parsedUserId)
+            .ExecuteUpdateAsync(u => u
+                .SetProperty(p => p.Email, $"deleted_{parsedUserId}@removed.local")
+                .SetProperty(p => p.Username, $"deleted_user")
+                .SetProperty(p => p.Password, (string?)null)
+                .SetProperty(p => p.TimeZoneId, (string?)null)
+            );
+
+        await transaction.CommitAsync();
+        
+        return Results.Ok();
+    }
+    catch (Exception ex)
+    {
+        await transaction.RollbackAsync();
+        // Log the exception here
+        return Results.Problem("Failed to delete user data. Please try again.");
+    }
+}
 
 
 private static async Task<IResult> GetCurrentUserStreak(
