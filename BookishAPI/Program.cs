@@ -780,7 +780,7 @@ public class UpdateUserPreferencesRequest
     public DailyReminderAt? DailyReminderAt { get; set; }
     public TimeLengthInMinutes? TimeLengthInMinutes { get; set; }
     public StreakLengthInDays? StreakLengthInDays { get; set; }
-    public bool IsNotificationsEnabled { get; set; }
+    public bool? IsNotificationsEnabled { get; set; }
     public List<int> InterestAreaIds { get; set; } = new();
     public List<int> ReadingPurposeIds { get; set; } = new();
     public List<int> SelectedBookIds { get; set; } = new();
