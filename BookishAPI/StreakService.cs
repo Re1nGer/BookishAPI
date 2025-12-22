@@ -29,7 +29,7 @@ public class StreakService
 
         var userTz = TZConvert.GetTimeZoneInfo(user.TimeZoneId ?? "UTC");
         var utcNow = DateTime.UtcNow;
-        var goalMinutes = (int)user.TimeLengthInMinutes;
+        var goalMinutes = user.TimeLengthInMinutes ?? 0;
         var goalPages = user.PagesReadGoalInYear ?? 0;
 
         var currentStreak = await CalculateCurrentStreakAsync(userId, userTz, goalMinutes, goalPages, utcNow);

@@ -210,6 +210,10 @@ public static class Users
             .WithName("ExportUserData")
             .WithDescription("Export all available user data");
             
+        group.MapGet("goals", GetUserGoals)
+            .WithName("Get user goals")
+            .WithDescription("Get user goals");
+            
         return group;
     }
     
@@ -440,6 +444,31 @@ private static async Task<IResult> ExportUserData(
         contentType: "application/json",
         fileDownloadName: $"bookish-export-{DateTime.UtcNow:yyyy-MM-dd}.json"
     );
+}
+
+private static async Task<IResult> GetUserGoals(
+        BookAppContext db,
+        ClaimsPrincipal claimsPrincipal)
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+    
+    var parsedUserId = Guid.Parse(userId);
+
+    var user = await db.Users
+        .Include(item => item.ReadingPurposes)
+        .FirstOrDefaultAsync(a => a.Id == parsedUserId);
+
+    if (user is null)
+    {
+        return Results.NotFound("User not found");
+    }
+    
+    return Results.Ok(new UserGoalsDto()
+    {
+        PagesReadGoal = user?.PagesReadGoalInYear,
+        TimeLengthInMinutes = user?.TimeLengthInMinutes
+    });
 }
     
 private static async Task<IResult> GetUserPreferences(
@@ -903,7 +932,7 @@ private static async Task<IResult> GetUserGoalState(
         CurrentAmountBooksGoal = booksReadWithinCurrentYearCount,
         BooksGoal = user?.BookAmountGoalInYear,
         PagesGoal = user?.PagesReadGoalInYear,
-        TimeGoalInMinutes = (int)user.TimeLengthInMinutes,
+        TimeGoalInMinutes = user?.TimeLengthInMinutes,
         CurrentAmountMinutes = minutesReadWithinToday,
         BooksReadWithinCurrentYear = booksReadWithinCurrentYear
     });
@@ -992,11 +1021,18 @@ private static async Task<IResult> UpdateUserPreferences(
     if (request.TimeLengthInMinutes is not null)
     {
         user.TimeLengthInMinutes = request.TimeLengthInMinutes.Value;
+        user.PagesReadGoalInYear = null;
     }
     
     if (request.StreakLengthInDays is not null)
     {
         user.StreakLengthInDays = request.StreakLengthInDays.Value;
+    }
+
+    if (request.PagesRead is not null)
+    {
+        user.PagesReadGoalInYear = request.PagesRead.Value;
+        user.TimeLengthInMinutes = null;
     }
     
     if (request.DailyReminderAt is not null)

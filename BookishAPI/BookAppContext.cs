@@ -24,7 +24,7 @@ public class User
     public bool IsEmailVerified { get; set; }
     public string? Password { get; set; }
     public StreakLengthInDays StreakLengthInDays { get; set; }
-    public TimeLengthInMinutes TimeLengthInMinutes { get; set; }
+    public int? TimeLengthInMinutes { get; set; }
     public TimeOnly DailyReminderAt { get; set; }
     public bool IsPremiumUser { get; set; }
     public bool IsNotificationsEnabled { get; set; }

@@ -778,12 +778,19 @@ public class UpdateUserPreferencesRequest
 {
     public int? BookAmountGoalInYear { get; set; }
     public DailyReminderAt? DailyReminderAt { get; set; }
-    public TimeLengthInMinutes? TimeLengthInMinutes { get; set; }
+    public int? TimeLengthInMinutes { get; set; }
     public StreakLengthInDays? StreakLengthInDays { get; set; }
+    public int? PagesRead { get; set; }
     public bool? IsNotificationsEnabled { get; set; }
     public List<int> InterestAreaIds { get; set; } = new();
     public List<int> ReadingPurposeIds { get; set; } = new();
     public List<int> SelectedBookIds { get; set; } = new();
+}
+
+public class UserGoalsDto
+{
+    public int? PagesReadGoal { get; set; }
+    public int? TimeLengthInMinutes { get; set; }
 }
 
 public class DailyReminderAt
