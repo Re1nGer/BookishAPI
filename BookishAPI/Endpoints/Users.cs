@@ -925,7 +925,7 @@ private static async Task<IResult> GetUserGoalState(
     var minutesReadWithinToday = await db.ReadingSessions
         .Where(a =>
             a.EndTime >= DateTime.UtcNow.Date)
-        .SumAsync(a => a.PagesRead);
+        .SumAsync(a => a.DurationInSeconds);
     
     return Results.Ok(new UserGoalState
     {
@@ -933,7 +933,7 @@ private static async Task<IResult> GetUserGoalState(
         BooksGoal = user?.BookAmountGoalInYear,
         PagesGoal = user?.PagesReadGoalInYear,
         TimeGoalInMinutes = user?.TimeLengthInMinutes,
-        CurrentAmountMinutes = minutesReadWithinToday,
+        CurrentAmountMinutes = minutesReadWithinToday / 60,
         BooksReadWithinCurrentYear = booksReadWithinCurrentYear
     });
 }
