@@ -1882,10 +1882,11 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
             .Include(item => item.Quotes)
             .Where(item => item.UserId == parsedUserId)
             .SelectMany(book => book.Quotes
-                .Select(item => new QuoteDto(
+                .Select(item => new QuoteDtoTime(
                     item.Id,
                     book.Title,
-                    item.Content))
+                    item.Content,
+                    item.CreatedAt))
                 .ToList());
 
         return Results.Ok(quotes);
