@@ -214,9 +214,51 @@ public static class Users
             .WithName("Get user goals")
             .WithDescription("Get user goals");
             
+        group.MapGet("books/last-read", GetLastBooks)
+            .WithName("Get user last read books")
+            .WithDescription("Get user last read books");
+            
         return group;
     }
     
+private static async Task<IResult> GetLastBooks(
+        BookAppContext db,
+        ClaimsPrincipal claimsPrincipal,
+        int limit,
+        int skip)
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+    
+    var parsedUserId = Guid.Parse(userId);
+
+    var user = await db.Users
+        .Include(item => item.ReadingPurposes)
+        .FirstOrDefaultAsync(a => a.Id == parsedUserId);
+
+    if (user is null)
+    {
+        return Results.NotFound("User not found");
+    }
+
+    var lastBooks = await db.Books
+        .Where(item => item.Status == BookStatus.Finished)
+        .OrderByDescending(item => item.FinishedAt!.Value)
+        .Skip(skip)
+        .Take(limit)
+        .Select(item => new BookShortDto()
+        {
+            Id = item.Id,
+            ImageUrl = item.ImageUrl,
+            Cover = string.IsNullOrEmpty(item.ImageUrl)
+                ? new BookCover(item.TitleColor!, item.BackgroundColor!)
+                : null,
+            Title = item.Title,
+            Author = item.Author
+        }).ToListAsync();
+    
+    return Results.Ok(lastBooks);
+}
 private static async Task<IResult> ExportUserData(
     BookAppContext db,
     ClaimsPrincipal claimsPrincipal)
