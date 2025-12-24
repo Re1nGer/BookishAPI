@@ -109,8 +109,8 @@ public class StreakService
         minutesByDay.TryGetValue(day, out var minutes);
         pagesByDay.TryGetValue(day, out var pages);
 
-        var minutesGoalMet = goalMinutes > 0 && minutes >= goalMinutes;
-        var pagesGoalMet = goalPages > 0 && pages >= goalPages;
+        var minutesGoalMet = minutes > goalMinutes;
+        var pagesGoalMet = pages > goalPages;
 
         return minutesGoalMet || pagesGoalMet;
     }
