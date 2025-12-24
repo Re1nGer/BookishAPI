@@ -140,4 +140,56 @@ public class StripeService
     
         return (clientSecret, customer.Id);
     }
+    public async Task<(string ClientSecret, string CustomerId)> CreateOneTimePaymentSheetAsync(
+        string priceId, 
+        string userId)
+    {
+        var parsedUserId = Guid.Parse(userId);
+        var userEmail = (await _dbContext.Users.FirstOrDefaultAsync(a => a.Id == parsedUserId))?.Email;
+    
+        // Get or create customer
+        var customerService = new CustomerService();
+        var customers = await customerService.ListAsync(new CustomerListOptions
+        {
+            Email = userEmail,
+            Limit = 1
+        });
+
+        Customer customer;
+        if (customers.Data.Count > 0)
+        {
+            customer = customers.Data[0];
+        }
+        else
+        {
+            customer = await customerService.CreateAsync(new CustomerCreateOptions
+            {
+                Email = userEmail,
+                Metadata = new Dictionary<string, string>
+                {
+                    { "userId", userId }
+                }
+            });
+        }
+
+        // Get the price to find the amount
+        var priceService = new PriceService();
+        var price = await priceService.GetAsync(priceId);
+
+        // Create a PaymentIntent for one-time payment
+        var paymentIntentService = new PaymentIntentService();
+        var paymentIntent = await paymentIntentService.CreateAsync(new PaymentIntentCreateOptions
+        {
+            Amount = price.UnitAmount, // Amount in cents
+            Currency = price.Currency,
+            Customer = customer.Id,
+            Metadata = new Dictionary<string, string>
+            {
+                { "userId", userId },
+                { "priceId", priceId }
+            },
+        });
+
+        return (paymentIntent.ClientSecret, customer.Id);
+    }
 }

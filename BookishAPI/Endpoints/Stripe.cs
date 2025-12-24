@@ -29,7 +29,7 @@ public static class Stripe
         try
         {
             var (clientSecret, customerId) = await stripeService
-                .CreateSubscriptionPaymentSheetAsync(request.PriceId, request.UserId);
+                .CreateOneTimePaymentSheetAsync(request.PriceId, request.UserId);
 
             return Results.Ok(new
             {
