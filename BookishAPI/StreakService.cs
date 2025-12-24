@@ -106,11 +106,11 @@ public class StreakService
         int goalMinutes,
         int goalPages)
     {
-        minutesByDay.TryGetValue(day, out var minutes);
-        pagesByDay.TryGetValue(day, out var pages);
+        var hadSession = minutesByDay.TryGetValue(day, out var minutes);
+        var readThatDay = pagesByDay.TryGetValue(day, out var pages);
 
-        var minutesGoalMet = minutes > goalMinutes;
-        var pagesGoalMet = pages > goalPages;
+        var minutesGoalMet = hadSession && goalMinutes > 0 && minutes > goalMinutes;
+        var pagesGoalMet = readThatDay && goalPages > 0 && pages > goalPages;
 
         return minutesGoalMet || pagesGoalMet;
     }
