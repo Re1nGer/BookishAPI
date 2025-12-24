@@ -152,6 +152,10 @@ public static class Users
         group.MapGet("repetition-group/{groupId}", GetRepetitionGroupCards)
             .WithName("Get User's repetition group cards")
             .WithSummary("Get User's repetition group cards");
+            
+        group.MapDelete("repetition-group/{groupId}", DeleteRepetitionGroup)
+            .WithName("Delete User's repetition group cards")
+            .WithSummary("Delete User's repetition group cards");
         
         group.MapPost("push-token", RegisterToken)
             .WithName("Register User's push token")
@@ -1453,6 +1457,40 @@ private static Dictionary<string, Dictionary<string, int>> GetWeightMatrix()
             .ToListAsync();
         
         return Results.Ok(groups);
+    }
+    
+    private static async Task<IResult> DeleteRepetitionGroup(
+        ClaimsPrincipal claimsPrincipal,
+        BookAppContext db,
+        int groupId)
+    {
+        var userId = claimsPrincipal.Claims
+            .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+
+        var parsedUserId = Guid.Parse(userId);
+        
+        await using var transaction = await db.Database.BeginTransactionAsync();
+
+        try
+        {
+            await db.UserGroupNotificationSchedules
+                .Where(item => item.GroupId == groupId && item.UserId == parsedUserId)
+                .Where(schedule => !schedule.IsSent)
+                .ExecuteDeleteAsync();
+
+            await db.SpacedRepetitionGroups
+                .Where(item => item.UserId == parsedUserId && item.Id == groupId)
+                .ExecuteDeleteAsync();
+
+            await transaction.CommitAsync();
+        }
+        catch (Exception)
+        {
+            await transaction.RollbackAsync();
+            return Results.Problem("Something went wrong");
+        }
+        
+        return Results.Ok("Group has been deleted");
     }
     
     private static async Task<IResult> CreateRepetitionGroup(
