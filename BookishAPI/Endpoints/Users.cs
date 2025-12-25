@@ -1136,6 +1136,8 @@ private static async Task<IResult> UpdateUserPreferences(
         user.IsNotificationsEnabled = request.IsNotificationsEnabled.Value;
     }
 
+    user.HasCompletedOnboarding = true;
+
     await db.SaveChangesAsync();
     
     return Results.Ok(new
