@@ -706,6 +706,7 @@ public class UserGoalState
     public int? BooksGoal { get; set; }
     public int? CurrentAmountBooksGoal { get; set; }
     public int? CurrentAmountMinutes { get; set; }
+    public bool HasCompletedOnboarding { get; set; }
     public List<BookShortDto> BooksReadWithinCurrentYear { get; set; }
 }
 

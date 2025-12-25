@@ -221,9 +221,38 @@ public static class Users
         group.MapGet("books/last-read", GetLastBooks)
             .WithName("Get user last read books")
             .WithDescription("Get user last read books");
+        
+        group.MapPost("premium", UserPremium)
+            .WithName("Make user premium")
+            .WithDescription("Make user premium");
             
         return group;
     }
+    
+private static async Task<IResult> UserPremium(
+        BookAppContext db,
+        ClaimsPrincipal claimsPrincipal)
+{
+    var userId = claimsPrincipal.Claims
+        .FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier)?.Value;
+    
+    var parsedUserId = Guid.Parse(userId);
+
+    var user = await db.Users
+        .Include(item => item.ReadingPurposes)
+        .FirstOrDefaultAsync(a => a.Id == parsedUserId);
+
+    if (user is null)
+    {
+        return Results.NotFound("User not found");
+    }
+
+    user.IsPremiumUser = true;
+    
+    await db.SaveChangesAsync();
+    
+    return Results.Ok();
+}
     
 private static async Task<IResult> GetLastBooks(
         BookAppContext db,
@@ -980,7 +1009,8 @@ private static async Task<IResult> GetUserGoalState(
         PagesGoal = user?.PagesReadGoalInYear,
         TimeGoalInMinutes = user?.TimeLengthInMinutes,
         CurrentAmountMinutes = minutesReadWithinToday / 60,
-        BooksReadWithinCurrentYear = booksReadWithinCurrentYear
+        BooksReadWithinCurrentYear = booksReadWithinCurrentYear,
+        HasCompletedOnboarding = user!.HasCompletedOnboarding
     });
 }
     
