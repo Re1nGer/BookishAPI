@@ -87,7 +87,7 @@ public class NotificationService
 
         if (schedule != null)
         {
-            //schedule.IsSent = true;
+            schedule.IsSent = true;
             schedule.SentAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
         }
