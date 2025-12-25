@@ -119,8 +119,6 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-await app.SeedDataAsync();
-
 app.UseAuthentication();
 
 app.UseAuthorization();
@@ -137,6 +135,8 @@ using (var scope = app.Services.CreateScope())
         dbContext.Database.Migrate();
     }
 }
+
+await app.SeedDataAsync();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
