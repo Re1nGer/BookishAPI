@@ -206,7 +206,12 @@ app.MapPost("/login", async (LoginRequest request, BookAppContext db, TokenServi
         return Results.BadRequest(new { Error = "Wrong password. Please try again!" });
     }
 
-    return Results.Ok(new { accessToken = tokens.AccessToken, refreshToken = tokens.RefreshToken, userId=user.Id });
+    return Results.Ok(new {
+        accessToken = tokens.AccessToken,
+        refreshToken = tokens.RefreshToken,
+        userId=user.Id,
+        hasCompletedOnboarding = user.HasCompletedOnboarding
+    });
 });
 
 app.MapPost("/refresh", async (RefreshTokenRequest request, TokenService tokenService) =>

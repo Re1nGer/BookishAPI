@@ -932,7 +932,8 @@ private static async Task<IResult> SignInWithGoogle(
     {
         accessToken = tokens.AccessToken,
         refreshToken = tokens.RefreshToken,
-        userId = user.Id
+        userId = user.Id,
+        hasCompletedOnboarding = user.HasCompletedOnboarding
     });
 }
     
