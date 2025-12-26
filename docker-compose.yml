@@ -1,0 +1,80 @@
+services:
+  bookish-api:
+    build:
+      context: ./BookishAPI
+      dockerfile: Dockerfile
+    container_name: bookish-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5000
+      - ConnectionStrings__BackendContext=Host=postgres;Port=5432;Database=bookishdb;Username=postgres;Password=postgres_password
+      - ConnectionStrings__MongoDB=mongodb://mongo:27017/bookishdb
+      - JWT__ValidIssuer=bookish
+      - JWT__Secret=8a4dc7e31b5f2d9g6h8j4k5l7n9p0q2r3t
+      - Firebase__ServiceAccountKeyPath=./Configs/react-native-test-a8948-firebase-adminsdk-t43l5-6053b67141.json
+      - Google__WebClientId=691662689785-pngqudprjbmp2hpl4navnjdull1hrndv.apps.googleusercontent.com
+    expose:
+      - "5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_started
+    networks:
+      - bookish-network
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - bookish-api
+    networks:
+      - bookish-network
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres_password
+      - POSTGRES_DB=bookishdb
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - bookish-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:7
+    container_name: mongo-db
+    environment:
+      - MONGO_INITDB_DATABASE=bookishdb
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - "27017:27017"
+    networks:
+      - bookish-network
+    restart: unless-stopped
+
+networks:
+  bookish-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  mongo-data:
