@@ -1,12 +1,13 @@
 ﻿FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
 WORKDIR /app
+EXPOSE 80
+EXPOSE 443
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 COPY ["BookishAPI.csproj", "./"]
-RUN dotnet restore "BookishAPI/BookishAPI.csproj"
+RUN dotnet restore "BookishAPI.csproj"
 COPY . .
-WORKDIR "/src/BookishAPI"
 RUN dotnet build "BookishAPI.csproj" -c Release -o /app/build
 
 FROM build AS publish
