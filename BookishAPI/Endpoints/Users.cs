@@ -930,6 +930,7 @@ private static async Task<IResult> SignInWithGoogle(
 
     return Results.Ok(new
     {
+        isPremiumUser = user.IsPremiumUser,
         accessToken = tokens.AccessToken,
         refreshToken = tokens.RefreshToken,
         userId = user.Id,

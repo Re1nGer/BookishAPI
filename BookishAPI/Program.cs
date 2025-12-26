@@ -207,6 +207,7 @@ app.MapPost("/login", async (LoginRequest request, BookAppContext db, TokenServi
     }
 
     return Results.Ok(new {
+        isPremiumUser = user.IsPremiumUser,
         accessToken = tokens.AccessToken,
         refreshToken = tokens.RefreshToken,
         userId=user.Id,
