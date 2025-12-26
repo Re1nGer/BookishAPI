@@ -12,7 +12,7 @@ public class NotificationService
         { RepetitionMode.LIGHT, new[] { 2, 7, 21, 45, 90, 180 } },
         { RepetitionMode.STANDARD, new[] { 1, 6, 14, 30, 66, 150, 360 } },
         { RepetitionMode.INTENSIVE, new[] { 1, 3, 7, 15, 35, 90, 240 } },
-        { RepetitionMode.CRAM, new[] { 1, 2, 4, 7, 14, 30 } }
+        { RepetitionMode.CRAM, new[] {0, 1, 2, 4, 7, 14, 30 } }
     };
 
     public NotificationService(BookAppContext context, ILogger<BookAppContext> logger)

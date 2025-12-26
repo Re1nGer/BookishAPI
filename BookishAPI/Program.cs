@@ -32,7 +32,7 @@ builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<FirebaseService>();
 builder.Services.AddScoped<StripeService>();
 builder.Services.AddScoped<StreakService>();
-//builder.Services.AddHostedService<NotificationSchedulerService>();
+builder.Services.AddHostedService<NotificationSchedulerService>();
 //builder.Services.AddHostedService<DailyReminderJob>();
 
 builder.Services.Configure<JsonOptions>(options =>
