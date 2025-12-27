@@ -132,7 +132,6 @@ public class FirebaseService
                 ImageUrl = payload.ImageUrl
             },
             Data = payload.Data,
-            /*
             Android = new AndroidConfig()
             {
                 Notification = new AndroidNotification()
@@ -140,21 +139,7 @@ public class FirebaseService
                     ClickAction = "FLUTTER_NOTIFICATION_CLICK", // For Flutter apps
                     Priority = NotificationPriority.HIGH
                 }
-            },
-            Apns = new ApnsConfig()
-            {
-                Aps = new Aps()
-                {
-                    Alert = new ApsAlert()
-                    {
-                        Title = payload.Title,
-                        Body = payload.Body
-                    },
-                    Badge = 1,
-                    Sound = "default"
-                }
             }
-        */
         };
     }
 
