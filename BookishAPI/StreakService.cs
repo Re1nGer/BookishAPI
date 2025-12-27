@@ -33,10 +33,11 @@ public class StreakService
         var goalPages = user.PagesReadGoalInYear ?? 0;
 
         var currentStreak = await CalculateCurrentStreakAsync(userId, userTz, goalMinutes, goalPages, utcNow);
-        var (minutesToday, pagesToday, isGoalMetToday) = await GetTodayProgressAsync(userId, userTz, goalMinutes, goalPages, utcNow);
+        var (minutesRead, pagesRead) = await GetProgressForPastWeek(userId, userTz, utcNow);
+        var isGoalMetToday = await IsGoalMetForToday(userId, userTz, goalMinutes, goalPages, utcNow);
         
         var notesCount = await _db.Notes
-            .Where(j => j.CreatedAt >= utcNow.AddDays(-90))
+            .Where(j => j.CreatedAt >= utcNow.AddDays(-7))
             .Where(j => j.Book.UserId == userId)
             .CountAsync();
 
@@ -44,12 +45,12 @@ public class StreakService
         {
             CurrentStreak = currentStreak,
             TargetDays = (int)user.StreakLengthInDays,
-            MinutesToday = minutesToday,
+            MinutesToday = minutesRead,
             GoalMinutes = goalMinutes,
-            Progress = goalMinutes > 0 ? (double)minutesToday / goalMinutes : 0,
+            Progress = goalMinutes > 0 ? (double)minutesRead / goalMinutes : 0,
             IsGoalMetToday = isGoalMetToday,
             IsAtRisk = currentStreak > 0 && !isGoalMetToday,
-            PagesReadToday = pagesToday,
+            PagesReadToday = pagesRead,
             NotesCount = notesCount
         };
     }
@@ -115,7 +116,28 @@ public class StreakService
         return minutesGoalMet || pagesGoalMet;
     }
 
-    private async Task<(int minutes, int pages, bool goalMet)> GetTodayProgressAsync(
+    private async Task<(int minutes, int pages)> GetProgressForPastWeek(
+        Guid userId, TimeZoneInfo userTz, DateTime utcNow)
+    {
+        var todayStart = DateTime.UtcNow.AddDays(-7);
+        var todayEnd = DateTime.UtcNow;
+
+        var minutes = await _db.ReadingSessions
+            .Where(s => s.Book.UserId == userId &&
+                        s.EndTime >= todayStart &&
+                        s.EndTime <= todayEnd)
+            .SumAsync(s => s.DurationInSeconds / 60);
+
+        var pages = await _db.ReadStats
+            .Where(r => r.UserId == userId &&
+                        r.ReadAt.Date >= todayStart &&
+                        r.ReadAt.Date <= todayEnd)
+            .SumAsync(r => r.PageNumber);
+
+        return (minutes, pages);
+    }
+    
+    private async Task<bool> IsGoalMetForToday(
         Guid userId, TimeZoneInfo userTz, int goalMinutes, int goalPages, DateTime utcNow)
     {
         var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(utcNow, userTz));
@@ -137,6 +159,6 @@ public class StreakService
         var minutesGoalMet = goalMinutes > 0 && minutes >= goalMinutes;
         var pagesGoalMet = goalPages > 0 && pages >= goalPages;
 
-        return (minutes, pages, minutesGoalMet || pagesGoalMet);
+        return minutesGoalMet || pagesGoalMet;
     }
 }
