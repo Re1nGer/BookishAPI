@@ -74,6 +74,7 @@ public static class Books
         return Results.Ok(readingPurposes);
     }
     
+    
     private static async Task<IResult> GetInterestAreas(
         BookAppContext db)
     {
