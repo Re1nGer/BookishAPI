@@ -8,20 +8,23 @@ public class GoogleBooksClient
     private const string BaseUrl = "https://www.googleapis.com/books/v1/volumes";
     private readonly ILogger<GoogleBooksClient> _logger;
     private readonly CategoryMapper _categoryMapper;
+    private readonly IConfiguration _configuration;
 
-    public GoogleBooksClient(ILogger<GoogleBooksClient> logger, CategoryMapper categoryMapper)
+    public GoogleBooksClient(ILogger<GoogleBooksClient> logger, CategoryMapper categoryMapper, IConfiguration configuration)
     {
         _logger = logger;
         _categoryMapper = categoryMapper;
+        _configuration = configuration;
         _httpClient = new HttpClient();
     }
 
     public async Task<GoogleBooksListDto> SearchBooksByTitleAsync(string title, int? maxResult = 10)
     {
+        var apiKey = _configuration["Google:ApiKey"];
         try
         {
             var query = Uri.EscapeDataString(title);
-            var response = await _httpClient.GetStringAsync($"{BaseUrl}?q={query}&maxResults={maxResult}");
+            var response = await _httpClient.GetStringAsync($"{BaseUrl}?q={query}&maxResults={maxResult}&key={apiKey}");
             var result = JsonSerializer.Deserialize<GoogleBooksListDto>(response, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             
             foreach (var book in result.Items)
