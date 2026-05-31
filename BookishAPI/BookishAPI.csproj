@@ -9,7 +9,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <None Update="Configs\**\*.json">
+        <None Include="Configs\**\*.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
             <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
         </None>
