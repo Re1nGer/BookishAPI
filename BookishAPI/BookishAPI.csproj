@@ -9,6 +9,13 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <None Update="Configs\**\*.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        </None>
+    </ItemGroup>
+
+    <ItemGroup>
         <PackageReference Include="FirebaseAdmin" Version="3.3.0" />
         <PackageReference Include="Google.Apis.Auth" Version="1.73.0" />
         <PackageReference Include="Mailgun.NET" Version="0.1.16" />
