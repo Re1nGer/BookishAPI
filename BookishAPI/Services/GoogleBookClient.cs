@@ -49,9 +49,10 @@ public class GoogleBooksClient
     }
     public async Task<GoogleBooksItemDto> GetBookByVolumeId(string id)
     {
+        var apiKey = _configuration["Google:ApiKey"];
         try
         {
-            var response = await _httpClient.GetStringAsync($"{BaseUrl}/{id}");
+            var response = await _httpClient.GetStringAsync($"{BaseUrl}/{id}?key={apiKey}");
             
             var result = JsonSerializer.Deserialize<GoogleBooksItemDto>(response, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             
